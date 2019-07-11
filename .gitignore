@@ -5,5 +5,5 @@ velocity.log
 .settings
 .metadata
 .recommenders
-output/
+*.csv
 bin/

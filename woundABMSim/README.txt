@@ -1,15 +1,7 @@
-Folder Contents:
+FOLDER CONTENTS:
 
-
-".metadata": Built-in repast file
-
-".settings": Built-in repast file
-
-"batch": Built-in repast file
 
 "docs": Built-in repast file
-
-"freezedried_datta": Built-in repast file
 
 "icons": Built-in repast file
 
@@ -53,13 +45,12 @@ Folder Contents:
 				"GridInterpolator.java": Interpolates .csv files to different spatial resolutions
 				"woundABMBuilderSim.java": Model builder
 
-"woundABMSim": Built-in repast file
-
 "woundABMSim.rs": Contains display styles, parameters, action.display's, etc.
 
 
+MODEL SETUP NOTES:
+	We recommend locating the model files and repository in the same working directory.
 
-NOTES:
+
+OTHER NOTES:
 	Due to schochasticity of the model, repeat simulations will yield slight variations in results. We recommend that you perform at least two iterations of each model and average the results during post processing.
-
-	Git versioning is only supported for model files.
