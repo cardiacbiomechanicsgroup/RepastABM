@@ -1,0 +1,7 @@
+<context id="woundABMBuilderSim" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://repast.org/scenario/context">
+	<context id="woundABMContextSim">
+  		<projection id="Cell Grid" type="grid" />
+  		<projection id="Chemokine" type="value layer" />
+  		<projection id="Collagen Sum" type="value layer" />
+  	</context>  	
+</context>

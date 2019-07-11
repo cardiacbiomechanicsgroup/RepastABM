@@ -1,0 +1,522 @@
+<?xml version='1.0'?>
+<root>
+	<resource name="dock.ui.ThemeMap">
+		<key>smooth</key>
+	</resource>
+	<resource name="ccontrol.frontend">
+		<areas/>
+		<frontend>
+			<settings>
+				<setting name="repast.simphony.ui.perspective.default">
+					<base>
+						<roots>
+							<root name="external">
+								<layout factory="predefined">
+									<replacement id="rootexternal"/>
+									<delegate id="delegate_screen dock"/>
+								</layout>
+								<children ignore="false"/>
+							</root>
+							<root name="ccontrol north">
+								<layout factory="predefined">
+									<replacement id="rootccontrol north"/>
+									<delegate id="delegate_flap dock">
+										<window auto="false" direction="SOUTH"/>
+										<children/>
+									</delegate>
+								</layout>
+								<children ignore="false"/>
+							</root>
+							<root name="ccontrol south">
+								<layout factory="predefined">
+									<replacement id="rootccontrol south"/>
+									<delegate id="delegate_flap dock">
+										<window auto="false" direction="NORTH"/>
+										<children>
+											<child id="0" hold="false" size="400"/>
+											<child id="1" hold="false" size="400"/>
+										</children>
+									</delegate>
+								</layout>
+								<children ignore="false">
+									<child>
+										<layout factory="predefined">
+											<replacement id="dockablesingle __custom.user__"/>
+											<delegate id="delegate_ccontrol backup factory id">
+												<id>__custom.user__</id>
+											</delegate>
+										</layout>
+										<children ignore="false"/>
+									</child>
+									<child>
+										<layout factory="predefined">
+											<replacement id="dockablesingle __run.options__"/>
+											<delegate id="delegate_ccontrol backup factory id">
+												<id>__run.options__</id>
+											</delegate>
+										</layout>
+										<children ignore="false"/>
+									</child>
+								</children>
+							</root>
+							<root name="ccontrol east">
+								<layout factory="predefined">
+									<replacement id="rootccontrol east"/>
+									<delegate id="delegate_flap dock">
+										<window auto="false" direction="WEST"/>
+										<children/>
+									</delegate>
+								</layout>
+								<children ignore="false"/>
+							</root>
+							<root name="ccontrol center">
+								<layout factory="predefined">
+									<replacement id="rootccontrol center"/>
+									<delegate id="delegate_SplitDockStationFactory">
+										<node nodeId="1551209116434" orientation="HORIZONTAL" divider="0.2084639498432602">
+											<node nodeId="1551209143662" orientation="VERTICAL" divider="0.3647214854111406">
+												<leaf id="1" nodeId="1551209119689"/>
+												<leaf id="2" nodeId="1551209143661"/>
+											</node>
+											<leaf id="0" nodeId="1278528927610"/>
+										</node>
+									</delegate>
+								</layout>
+								<children ignore="false">
+									<child>
+										<layout factory="predefined">
+											<replacement id="rootrepast.simphony.ui.view.viz"/>
+											<delegate id="delegate_SplitDockStationFactory"/>
+										</layout>
+										<children ignore="true"/>
+									</child>
+									<child>
+										<layout factory="predefined">
+											<replacement id="dockablesingle tree.view"/>
+											<delegate id="delegate_ccontrol backup factory id">
+												<id>tree.view</id>
+											</delegate>
+										</layout>
+										<children ignore="false"/>
+									</child>
+									<child>
+										<layout factory="predefined">
+											<replacement id="dockablesingle __gui__parameters__"/>
+											<delegate id="delegate_ccontrol backup factory id">
+												<id>__gui__parameters__</id>
+											</delegate>
+										</layout>
+										<children ignore="false"/>
+									</child>
+								</children>
+							</root>
+							<root name="ccontrol west">
+								<layout factory="predefined">
+									<replacement id="rootccontrol west"/>
+									<delegate id="delegate_flap dock">
+										<window auto="false" direction="EAST"/>
+										<children/>
+									</delegate>
+								</layout>
+								<children ignore="false"/>
+							</root>
+							<root name="repast.simphony.ui.view.viz">
+								<layout factory="predefined">
+									<replacement id="rootrepast.simphony.ui.view.viz"/>
+									<delegate id="delegate_SplitDockStationFactory"/>
+								</layout>
+								<children ignore="true"/>
+							</root>
+						</roots>
+						<children/>
+					</base>
+					<modes>
+						<dockables>
+							<entry id="single repast.simphony.ui.view.viz" current="dock.mode.normal">
+								<history>
+									<mode>dock.mode.normal</mode>
+								</history>
+								<properties>
+									<property id="dock.mode.normal">
+										<mode>dock.mode.normal</mode>
+										<root>ccontrol center</root>
+										<location>
+											<property factory="SplitDockPathProperty">
+												<leaf id="1278528927610"/>
+											</property>
+										</location>
+									</property>
+								</properties>
+							</entry>
+							<entry id="single __custom.user__" current="dock.mode.minimized">
+								<history>
+									<mode>dock.mode.normal</mode>
+									<mode>dock.mode.minimized</mode>
+								</history>
+								<properties>
+									<property id="dock.mode.minimized">
+										<mode>dock.mode.minimized</mode>
+										<root>ccontrol south</root>
+										<location>
+											<property factory="flap dock">
+												<index>0</index>
+												<holding>false</holding>
+												<size>400</size>
+											</property>
+										</location>
+									</property>
+									<property id="dock.mode.normal">
+										<mode>dock.mode.normal</mode>
+										<root>ccontrol center</root>
+										<location>
+											<property factory="SplitDockPathProperty">
+												<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+												<leaf id="1278528927693"/>
+											</property>
+											<property factory="StackDockPropertyFactory">1</property>
+										</location>
+									</property>
+								</properties>
+							</entry>
+							<entry id="single __gui__parameters__" current="dock.mode.normal">
+								<history>
+									<mode>dock.mode.normal</mode>
+								</history>
+								<properties>
+									<property id="dock.mode.normal">
+										<mode>dock.mode.normal</mode>
+										<root>ccontrol center</root>
+										<location>
+											<property factory="SplitDockPathProperty">
+												<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+												<leaf id="1278528927693"/>
+											</property>
+											<property factory="StackDockPropertyFactory">1</property>
+										</location>
+									</property>
+								</properties>
+							</entry>
+							<entry id="single tree.view" current="dock.mode.normal">
+								<history>
+									<mode>dock.mode.minimized</mode>
+									<mode>dock.mode.normal</mode>
+								</history>
+								<properties>
+									<property id="dock.mode.minimized">
+										<mode>dock.mode.minimized</mode>
+										<root>ccontrol north</root>
+										<location>
+											<property factory="flap dock">
+												<index>0</index>
+												<holding>false</holding>
+												<size>400</size>
+											</property>
+										</location>
+									</property>
+									<property id="dock.mode.normal">
+										<mode>dock.mode.normal</mode>
+										<root>ccontrol center</root>
+										<location>
+											<property factory="SplitDockPathProperty">
+												<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+												<leaf id="1278528927693"/>
+											</property>
+											<property factory="StackDockPropertyFactory">2</property>
+										</location>
+									</property>
+								</properties>
+							</entry>
+							<entry id="single __run.options__" current="dock.mode.minimized">
+								<history>
+									<mode>dock.mode.normal</mode>
+									<mode>dock.mode.minimized</mode>
+								</history>
+								<properties>
+									<property id="dock.mode.minimized">
+										<mode>dock.mode.minimized</mode>
+										<root>ccontrol south</root>
+										<location>
+											<property factory="flap dock">
+												<index>1</index>
+												<holding>false</holding>
+												<size>400</size>
+											</property>
+										</location>
+									</property>
+									<property id="dock.mode.normal">
+										<mode>dock.mode.normal</mode>
+										<root>ccontrol center</root>
+										<location>
+											<property factory="SplitDockPathProperty">
+												<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+												<leaf id="1278528927693"/>
+											</property>
+										</location>
+									</property>
+								</properties>
+							</entry>
+						</dockables>
+						<modes>
+							<entry id="dock.mode.maximized"/>
+						</modes>
+					</modes>
+				</setting>
+			</settings>
+			<current name="repast.simphony.ui.perspective.default">
+				<base>
+					<roots>
+						<root name="external">
+							<layout factory="predefined">
+								<replacement id="rootexternal"/>
+								<delegate id="delegate_screen dock"/>
+							</layout>
+							<children ignore="false"/>
+						</root>
+						<root name="ccontrol north">
+							<layout factory="predefined">
+								<replacement id="rootccontrol north"/>
+								<delegate id="delegate_flap dock">
+									<window auto="false" direction="SOUTH"/>
+									<children/>
+								</delegate>
+							</layout>
+							<children ignore="false"/>
+						</root>
+						<root name="ccontrol south">
+							<layout factory="predefined">
+								<replacement id="rootccontrol south"/>
+								<delegate id="delegate_flap dock">
+									<window auto="false" direction="NORTH"/>
+									<children>
+										<child id="0" hold="false" size="400"/>
+										<child id="1" hold="false" size="400"/>
+									</children>
+								</delegate>
+							</layout>
+							<children ignore="false">
+								<child>
+									<layout factory="predefined">
+										<replacement id="dockablesingle __custom.user__"/>
+										<delegate id="delegate_ccontrol backup factory id">
+											<id>__custom.user__</id>
+										</delegate>
+									</layout>
+									<children ignore="false"/>
+								</child>
+								<child>
+									<layout factory="predefined">
+										<replacement id="dockablesingle __run.options__"/>
+										<delegate id="delegate_ccontrol backup factory id">
+											<id>__run.options__</id>
+										</delegate>
+									</layout>
+									<children ignore="false"/>
+								</child>
+							</children>
+						</root>
+						<root name="ccontrol east">
+							<layout factory="predefined">
+								<replacement id="rootccontrol east"/>
+								<delegate id="delegate_flap dock">
+									<window auto="false" direction="WEST"/>
+									<children/>
+								</delegate>
+							</layout>
+							<children ignore="false"/>
+						</root>
+						<root name="ccontrol center">
+							<layout factory="predefined">
+								<replacement id="rootccontrol center"/>
+								<delegate id="delegate_SplitDockStationFactory">
+									<node nodeId="1551209116434" orientation="HORIZONTAL" divider="0.2084639498432602">
+										<node nodeId="1551209143662" orientation="VERTICAL" divider="0.3647214854111406">
+											<leaf id="1" nodeId="1551209119689"/>
+											<leaf id="2" nodeId="1551209143661"/>
+										</node>
+										<leaf id="0" nodeId="1278528927610"/>
+									</node>
+								</delegate>
+							</layout>
+							<children ignore="false">
+								<child>
+									<layout factory="predefined">
+										<replacement id="rootrepast.simphony.ui.view.viz"/>
+										<delegate id="delegate_SplitDockStationFactory"/>
+									</layout>
+									<children ignore="false"/>
+								</child>
+								<child>
+									<layout factory="predefined">
+										<replacement id="dockablesingle tree.view"/>
+										<delegate id="delegate_ccontrol backup factory id">
+											<id>tree.view</id>
+										</delegate>
+									</layout>
+									<children ignore="false"/>
+								</child>
+								<child>
+									<layout factory="predefined">
+										<replacement id="dockablesingle __gui__parameters__"/>
+										<delegate id="delegate_ccontrol backup factory id">
+											<id>__gui__parameters__</id>
+										</delegate>
+									</layout>
+									<children ignore="false"/>
+								</child>
+							</children>
+						</root>
+						<root name="ccontrol west">
+							<layout factory="predefined">
+								<replacement id="rootccontrol west"/>
+								<delegate id="delegate_flap dock">
+									<window auto="false" direction="EAST"/>
+									<children/>
+								</delegate>
+							</layout>
+							<children ignore="false"/>
+						</root>
+						<root name="repast.simphony.ui.view.viz">
+							<layout factory="predefined">
+								<replacement id="rootrepast.simphony.ui.view.viz"/>
+								<delegate id="delegate_SplitDockStationFactory"/>
+							</layout>
+							<children ignore="false"/>
+						</root>
+					</roots>
+					<children/>
+				</base>
+				<modes>
+					<dockables>
+						<entry id="single repast.simphony.ui.view.viz" current="dock.mode.normal">
+							<history>
+								<mode>dock.mode.normal</mode>
+							</history>
+							<properties>
+								<property id="dock.mode.normal">
+									<mode>dock.mode.normal</mode>
+									<root>ccontrol center</root>
+									<location>
+										<property factory="SplitDockPathProperty">
+											<leaf id="1278528927610"/>
+										</property>
+									</location>
+								</property>
+							</properties>
+						</entry>
+						<entry id="single __custom.user__" current="dock.mode.minimized">
+							<history>
+								<mode>dock.mode.normal</mode>
+								<mode>dock.mode.minimized</mode>
+							</history>
+							<properties>
+								<property id="dock.mode.minimized">
+									<mode>dock.mode.minimized</mode>
+									<root>ccontrol south</root>
+									<location>
+										<property factory="flap dock">
+											<index>0</index>
+											<holding>false</holding>
+											<size>400</size>
+										</property>
+									</location>
+								</property>
+								<property id="dock.mode.normal">
+									<mode>dock.mode.normal</mode>
+									<root>ccontrol center</root>
+									<location>
+										<property factory="SplitDockPathProperty">
+											<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+											<leaf id="1278528927693"/>
+										</property>
+										<property factory="StackDockPropertyFactory">1</property>
+									</location>
+								</property>
+							</properties>
+						</entry>
+						<entry id="single __gui__parameters__" current="dock.mode.normal">
+							<history>
+								<mode>dock.mode.normal</mode>
+							</history>
+							<properties>
+								<property id="dock.mode.normal">
+									<mode>dock.mode.normal</mode>
+									<root>ccontrol center</root>
+									<location>
+										<property factory="SplitDockPathProperty">
+											<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+											<leaf id="1278528927693"/>
+										</property>
+										<property factory="StackDockPropertyFactory">1</property>
+									</location>
+								</property>
+							</properties>
+						</entry>
+						<entry id="single tree.view" current="dock.mode.normal">
+							<history>
+								<mode>dock.mode.minimized</mode>
+								<mode>dock.mode.normal</mode>
+							</history>
+							<properties>
+								<property id="dock.mode.minimized">
+									<mode>dock.mode.minimized</mode>
+									<root>ccontrol north</root>
+									<location>
+										<property factory="flap dock">
+											<index>0</index>
+											<holding>false</holding>
+											<size>400</size>
+										</property>
+									</location>
+								</property>
+								<property id="dock.mode.normal">
+									<mode>dock.mode.normal</mode>
+									<root>ccontrol center</root>
+									<location>
+										<property factory="SplitDockPathProperty">
+											<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+											<leaf id="1278528927693"/>
+										</property>
+										<property factory="StackDockPropertyFactory">2</property>
+									</location>
+								</property>
+							</properties>
+						</entry>
+						<entry id="single __run.options__" current="dock.mode.minimized">
+							<history>
+								<mode>dock.mode.normal</mode>
+								<mode>dock.mode.minimized</mode>
+							</history>
+							<properties>
+								<property id="dock.mode.minimized">
+									<mode>dock.mode.minimized</mode>
+									<root>ccontrol south</root>
+									<location>
+										<property factory="flap dock">
+											<index>1</index>
+											<holding>false</holding>
+											<size>400</size>
+										</property>
+									</location>
+								</property>
+								<property id="dock.mode.normal">
+									<mode>dock.mode.normal</mode>
+									<root>ccontrol center</root>
+									<location>
+										<property factory="SplitDockPathProperty">
+											<node location="LEFT" size="0.23692551505546752" id="1278528927638"/>
+											<leaf id="1278528927693"/>
+										</property>
+									</location>
+								</property>
+							</properties>
+						</entry>
+					</dockables>
+					<modes>
+						<entry id="dock.mode.maximized"/>
+					</modes>
+				</modes>
+			</current>
+		</frontend>
+	</resource>
+	<resource name="ccontrol.preferences"/>
+</root>
