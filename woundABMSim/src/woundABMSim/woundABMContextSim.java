@@ -17,6 +17,7 @@ import repast.simphony.context.space.grid.GridFactoryFinder;
 import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.engine.schedule.ISchedule;
 import repast.simphony.engine.schedule.ScheduledMethod;
+import repast.simphony.parameter.Parameters;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridBuilderParameters;
 import repast.simphony.space.grid.GridPoint;
@@ -26,10 +27,13 @@ import repast.simphony.valueLayer.GridValueLayer;
 
 public class woundABMContextSim extends DefaultContext<Object> {
 	
+	// Pull parameters
+	static Parameters p = RunEnvironment.getInstance().getParameters();
+	
 	// Geometry
-	static int sampleWidth = 480;											// um
-	static int sampleHeight = 480;											// um
-	static double gridUnitSize = 2.5;										// um (10, 5, or 2.5)
+	static double sampleWidth = (Double) p.getValue("sampleWidth");			// um
+	static double sampleHeight = (Double) p.getValue("sampleHeight");			// um
+	static double gridUnitSize = (Double) p.getValue("gridUnitSize");		// um
 	static int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);		// grids
 	static int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);	// grids
 	private double cellRadius = 5.0;										// um
@@ -40,13 +44,13 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private ArrayList<GridValueLayer> gridvaluelayerlist;
 	private ArrayList<GridValueLayer> fibringridvaluelayerlist;
 	private String[] basicValueLayer = {"Collagen MVA", "Collagen MVL", "Collagen Sum", "Fibrin Sum"};
-	private String[] cueValueLayer = {"CGM", "CGX", "CGY", "SM", "SX", "SY"};
-	private String mechs = "Biax";								// "UniaxC", "UniaxL", or "Biax"
+	private String[] cueValueLayer = {"CM", "CX", "CY", "MM", "MX", "MY"};
+	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
 	private int fiberBinSize = 5;									// degrees
 	
-	private String fiberDist = (String) "Circumferential";	// "Circumferential" "Longitudinal" or "Uniform"
-	private boolean includeFib = (boolean) true;			// true or false
+	private String initialFiberDist = (String) p.getValue("initialFiberDist");	// "Circumferential" "Longitudinal" or "Uniform"
+	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
 	
 	// Output file names
 	private Date date = new Date();
@@ -155,12 +159,12 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Set distribution across all bins based on fiber distribution type
 		double[] distrib;
-		if (fiberDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
+		if (initialFiberDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
 			distrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
 					.013821, .020988, .03025, .041382, .053729, .06621, .07744,.085965,.090574,.090574,
 					.085965,.07744,.06621,.053729,.041382,.03025,.020988,.013821,.008638,.005124,.002885,
 					.001542,.000782,.000377,.000174,.000079,.000043};
-		} else if (fiberDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
+		} else if (initialFiberDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
 			distrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
 					.0015,.0007,.0004,.0002,.0001,.0000,.0000,.0001,.0002,.0004,.0007,.0015,.0028,.0050,
 					.0084,.0136,.0207,.0300,.0412,.0537,.0664,.0778,.0865,.0912};
@@ -182,7 +186,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				int binNum = gridValueLayerList.size();
 				for (int k = 0; k < binNum; k++) {
 					gridValueLayerList.get(k).set(36*scalingFactor*distrib[k], i, j);
-					if (includeFib == true) {
+					if (includeFibrin == true) {
 						fibringridValueLayerList.get(k).set(25*36*scalingFactor*distrib[k], i, j);
 					} else {
 						fibringridValueLayerList.get(k).set(0, i, j);
@@ -213,15 +217,15 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	// Initialize grid value layers of cues
 	@ScheduledMethod(start = 0, priority = 2)
 	public void initializeCueLayers() throws Exception {
-		String[] cueFileName = {"input\\SM_"+mechs+"_"+gridWidth+".csv", "input\\SX_"+mechs+"_"+gridWidth+".csv", 
-				"input\\SY_"+mechs+"_"+gridWidth+".csv", "input\\CGM_"+gridWidth+".csv", "input\\CGX_"+gridWidth+".csv", 
-				"input\\CGY_"+gridWidth+".csv"};
-		GridValueLayer SM = (GridValueLayer) getValueLayer("SM");
-		GridValueLayer SX = (GridValueLayer) getValueLayer("SX");	
-		GridValueLayer SY = (GridValueLayer) getValueLayer("SY");
-		GridValueLayer CGM = (GridValueLayer) getValueLayer("CGM");
-		GridValueLayer CGX = (GridValueLayer) getValueLayer("CGX");
-		GridValueLayer CGY = (GridValueLayer) getValueLayer("CGY");
+		String[] cueFileName = {"input\\MM_"+mechs+"_"+gridWidth+".csv", "input\\MX_"+mechs+"_"+
+				gridWidth+".csv", "input\\MY_"+mechs+"_"+gridWidth+".csv", "input\\CM_"+gridWidth+".csv", 
+				"input\\CX_"+gridWidth+".csv", "input\\CY_"+gridWidth+".csv"};
+		GridValueLayer MM = (GridValueLayer) getValueLayer("MM");
+		GridValueLayer MX = (GridValueLayer) getValueLayer("MX");	
+		GridValueLayer MY = (GridValueLayer) getValueLayer("MY");
+		GridValueLayer CM = (GridValueLayer) getValueLayer("CM");
+		GridValueLayer CX = (GridValueLayer) getValueLayer("CX");
+		GridValueLayer CY = (GridValueLayer) getValueLayer("CY");
 
 		// Check that each file exists by type
 		int cueNum = cueFileName.length;
@@ -233,22 +237,22 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				for (int j = 0; j < gridWidth; j++) {	
 					for (int k = 0; k < gridHeight; k++) {
 						double [] initialStrainCue = calculateStrainCue(j, k);
-						SM.set(initialStrainCue[0], k, j);
-						SX.set(initialStrainCue[1], k, j);
-						SY.set(initialStrainCue[2], k, j);
+						MM.set(initialStrainCue[0], k, j);
+						MX.set(initialStrainCue[1], k, j);
+						MY.set(initialStrainCue[2], k, j);
 					}
 				}
 				
 				// Write the new strain grid value layers to csv files for future model runs
-				FileWriter SMfile = new FileWriter(cueFileName[0]);
-				FileWriter SXfile = new FileWriter(cueFileName[1]);
-				FileWriter SYfile = new FileWriter(cueFileName[2]);
-				BufferedWriter SMwriter = new BufferedWriter(SMfile);
-				BufferedWriter SXwriter = new BufferedWriter(SXfile);
-				BufferedWriter SYwriter = new BufferedWriter(SYfile);
-				writeValLayertoCSV(SM, SMwriter);
-				writeValLayertoCSV(SX, SXwriter);
-				writeValLayertoCSV(SY, SYwriter);
+				FileWriter MMfile = new FileWriter(cueFileName[0]);
+				FileWriter MXfile = new FileWriter(cueFileName[1]);
+				FileWriter MYfile = new FileWriter(cueFileName[2]);
+				BufferedWriter MMwriter = new BufferedWriter(MMfile);
+				BufferedWriter MXwriter = new BufferedWriter(MXfile);
+				BufferedWriter MYwriter = new BufferedWriter(MYfile);
+				writeValLayertoCSV(MM, MMwriter);
+				writeValLayertoCSV(MX, MXwriter);
+				writeValLayertoCSV(MY, MYwriter);
 				i = 2; // Skip testing any remaining strain files
 
 				// If a chemo files does not exist recreate all chemo GVLs
@@ -256,39 +260,39 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				for (int j = 0; j < gridWidth; j++) {
 					for (int k = 0; k < gridHeight; k++) {
 						double [] initialChemoCue = calculateChemoCue(j, k);
-						CGM.set(initialChemoCue[0], j, k);
-						CGX.set(initialChemoCue[1], j, k);
-						CGY.set(initialChemoCue[2], j, k);
+						CM.set(initialChemoCue[0], j, k);
+						CX.set(initialChemoCue[1], j, k);
+						CY.set(initialChemoCue[2], j, k);
 					}
 				}
 
 				// Write the new chemo grid value layers to csv files for future model runs
-				FileWriter CGMfile = new FileWriter(cueFileName[3]);
-				FileWriter CGXfile = new FileWriter(cueFileName[4]);
-				FileWriter CGYfile = new FileWriter(cueFileName[5]);
-				BufferedWriter CGMwriter = new BufferedWriter(CGMfile);
-				BufferedWriter CGXwriter = new BufferedWriter(CGXfile);
-				BufferedWriter CGYwriter = new BufferedWriter(CGYfile);
-				writeValLayertoCSV(CGM, CGMwriter);
-				writeValLayertoCSV(CGX, CGXwriter);
-				writeValLayertoCSV(CGY, CGYwriter);
+				FileWriter CMfile = new FileWriter(cueFileName[3]);
+				FileWriter CXfile = new FileWriter(cueFileName[4]);
+				FileWriter CYfile = new FileWriter(cueFileName[5]);
+				BufferedWriter CMwriter = new BufferedWriter(CMfile);
+				BufferedWriter CXwriter = new BufferedWriter(CXfile);
+				BufferedWriter CYwriter = new BufferedWriter(CYfile);
+				writeValLayertoCSV(CM, CMwriter);
+				writeValLayertoCSV(CX, CXwriter);
+				writeValLayertoCSV(CY, CYwriter);
 				i = 5; // Skip testing any remaining chemo files
 			}
 		}
 
 		// Set value layers to CSV
-		CSVReader csvSM = new CSVReader(new FileReader(cueFileName[0].toString()));
-		setValuelayer (csvSM, SM);
-		CSVReader csvSX = new CSVReader(new FileReader(cueFileName[1].toString()));
-		setValuelayer (csvSX, SX);
-		CSVReader csvSY = new CSVReader(new FileReader(cueFileName[2].toString()));
-		setValuelayer (csvSY, SY);
-		CSVReader csvCGM = new CSVReader(new FileReader(cueFileName[3].toString()));
-		setValuelayer (csvCGM, CGM);
-		CSVReader csvCGX = new CSVReader(new FileReader(cueFileName[4].toString()));
-		setValuelayer (csvCGX, CGX);
-		CSVReader csvCGY = new CSVReader(new FileReader(cueFileName[5].toString()));
-		setValuelayer (csvCGY, CGY);
+		CSVReader csvMM = new CSVReader(new FileReader(cueFileName[0].toString()));
+		setValuelayer (csvMM, MM);
+		CSVReader csvMX = new CSVReader(new FileReader(cueFileName[1].toString()));
+		setValuelayer (csvMX, MX);
+		CSVReader csvMY = new CSVReader(new FileReader(cueFileName[2].toString()));
+		setValuelayer (csvMY, MY);
+		CSVReader csvCM = new CSVReader(new FileReader(cueFileName[3].toString()));
+		setValuelayer (csvCM, CM);
+		CSVReader csvCX = new CSVReader(new FileReader(cueFileName[4].toString()));
+		setValuelayer (csvCX, CX);
+		CSVReader csvCY = new CSVReader(new FileReader(cueFileName[5].toString()));
+		setValuelayer (csvCY, CY);
 	}
 
 	/* Secondary methods */
@@ -399,18 +403,18 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		// Calculate chemokine gradient cue vectors
 		double meanGradientX = 0.25/Math.PI*gradientX;
 		double meanGradientY = 0.25/Math.PI*gradientY;
-		double CGMre = Math.sqrt(Math.pow(meanGradientX, 2)+Math.pow(meanGradientY, 2)); 
-		double CGXre = meanGradientX/CGMre;
-		double CGYre = meanGradientY/CGMre;
+		double CMre = Math.sqrt(Math.pow(meanGradientX, 2)+Math.pow(meanGradientY, 2)); 
+		double CXre = meanGradientX/CMre;
+		double CYre = meanGradientY/CMre;
 
 		// Correct division by zero
-		if(Double.isNaN(CGXre)) {
-			CGXre = 0.0;
+		if(Double.isNaN(CXre)) {
+			CXre = 0.0;
 		}
-		if(Double.isNaN(CGYre)) {
-			CGYre = 0.0;
+		if(Double.isNaN(CYre)) {
+			CYre = 0.0;
 		}
-		return new double[] {CGMre, CGXre, CGYre};
+		return new double[] {CMre, CXre, CYre};
 	}
 
 	// Calculate strain guidance cue vectors
@@ -501,11 +505,11 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 		// Strain components
 		double meanStrainAngle = 0.5*Math.atan2(meanStrainY, meanStrainX);
-		double SXre = Math.cos(meanStrainAngle);
-		double SYre = Math.sin(meanStrainAngle);
-		double SMre = Math.sqrt(Math.pow(meanStrainX, 2)+Math.pow(meanStrainY, 2));
+		double MXre = Math.cos(meanStrainAngle);
+		double MYre = Math.sin(meanStrainAngle);
+		double MMre = Math.sqrt(Math.pow(meanStrainX, 2)+Math.pow(meanStrainY, 2));
 
-		return new double[] {SMre, SXre, SYre};
+		return new double[] {MMre, MXre, MYre};
 	}
 
 	// Returns a list containing all the grids within one half grid from the perimeter
@@ -572,16 +576,6 @@ public class woundABMContextSim extends DefaultContext<Object> {
 
 		return edgeSites;
 	}
-
-	// Returns the grid size to other classes
-	public static double getGridSize() {
-		return gridUnitSize;
-	}
-	
-	// Returns the model dimensions
-	public static int[] getModelDimension() {
-		return new int[] {gridHeight, gridWidth};
-	}
 	
 /* Data collection methods */
 	// Writes model parameters to console and to csv file (change scheduling to count fibroblasts before infarction)
@@ -594,9 +588,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Build data strings
 		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin";
-		String output = Double.toString(gridUnitSize)+","+Integer.toString(sampleWidth)+","+
-				Integer.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
-				fiberDist+","+Boolean.toString(includeFib);
+		String output = Double.toString(gridUnitSize)+","+Double.toString(sampleWidth)+","+
+				Double.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
+				initialFiberDist+","+Boolean.toString(includeFibrin);
 		String[][] fibroblastParameters = CellAgentSim.getFibroblastParameters();
 		
 		StringBuilder paramBuilder = new StringBuilder();

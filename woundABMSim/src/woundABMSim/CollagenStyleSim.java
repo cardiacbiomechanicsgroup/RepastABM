@@ -4,11 +4,17 @@ import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 
+import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.parameter.Parameters;
 import repast.simphony.valueLayer.ValueLayer;
 import repast.simphony.visualizationOGL2D.ValueLayerStyleOGL;
 
 public class CollagenStyleSim implements ValueLayerStyleOGL {
-	double gridUnitSize = woundABMContextSim.getGridSize();
+	
+	// Pull parameters
+	Parameters p = RunEnvironment.getInstance().getParameters();
+	
+	double gridUnitSize = (Double) p.getValue("gridUnitSize");
 	private ValueLayer collagen;
 	private Map<Integer, Color> colorMap = new HashMap<Integer, Color>();
 	

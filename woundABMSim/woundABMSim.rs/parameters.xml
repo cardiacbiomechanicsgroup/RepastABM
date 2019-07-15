@@ -1,12 +1,104 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <parameters>
 
-				<parameter name="randomSeed" displayName="Default Random Seed" type="int" 
-						defaultValue="__NULL__"
-						isReadOnly="false" 
-						converter="repast.simphony.parameter.StringConverterFactory$IntConverter"
-									
-		/>
+		<parameter name="randomSeed" displayName="Default Random Seed" type="int" 
+				defaultValue="__NULL__" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$IntConverter"/>
+		
+		<parameter name="initialCellCount"  displayName="Initial Cell Count" type="int" 
+				defaultValue="576"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$IntConverter"/>
+				
+		<parameter name="apoptosisTime" displayName="Ticks per Apoptosis event" type="double" 
+				defaultValue="240"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="mitosisTime" displayName="Ticks per Mitosis event" type="double" 
+				defaultValue="24"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="depositionTime" displayName="Deposition Time" type="double" 
+				defaultValue="0.5"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="degradationTime" displayName="Degradation Time" type="double"
+				defaultValue="0.5" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="endTick" displayName="Total Simulation Ticks" type="int"
+				defaultValue="1009" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$IntConverter"/>
+
+		<parameter name="Wc" displayName="Weight for Chemokine Gradient Cue" type="double"
+				defaultValue="0.167"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="Wp" displayName="Weight for Cell Persistence Cue" type="double"
+				defaultValue="0.333" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="Wm" displayName="Weight for Mechanical Cue" type="double"
+				defaultValue="0.167" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="Ws" displayName="Weight for Structural Cue" type="double"
+				defaultValue="0.167"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+
+		<parameter name="cellRemoval" displayName="Cell Removal" type="boolean"
+				defaultValue="true" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>
+
+		<parameter name="colRotation" displayName="Collagen Rotation" type="boolean"
+				defaultValue="true" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>
+		
+		<parameter name="gridUnitSize" displayName="Grid Size" type="double"
+				defaultValue="10.0"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+		
+		<parameter name="sampleWidth" displayName="Sample Width" type="double"
+				defaultValue="480" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+		
+		<parameter name="sampleHeight" displayName="Sample Height" type="double"
+				defaultValue="480"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+		
+		<parameter name="depoType" displayName="Deposition Type" type="String"
+				defaultValue="Aligned"
+				values="'Aligned' 'Random'"
+				isReadOnly="false"/>
+				
+		<parameter name="mechs" displayName="Mechanics" type="String"
+				defaultValue="Biax"
+				values="'Biax' 'UniaxC' 'UniaxL'"
+				isReadOnly="false"/>
+		
+		<parameter name="initialFiberDist" displayName="Initial Fiber Distribution" type="String"
+				defaultValue="Circumferential"
+				values="'Circumferential' 'Longitudinal' 'Uniform'"
+				isReadOnly="false"/>
+				
+		<parameter name="includeFibrin" displayName="Include Fibrin" type="boolean"
+				defaultValue="true"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>
+		
 		</parameters>
-
-

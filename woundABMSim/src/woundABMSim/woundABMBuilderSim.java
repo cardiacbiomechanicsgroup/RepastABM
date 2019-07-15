@@ -3,18 +3,22 @@ package woundABMSim;
 import repast.simphony.context.Context;
 import repast.simphony.dataLoader.ContextBuilder;
 import repast.simphony.engine.environment.RunEnvironment;
+import repast.simphony.parameter.Parameters;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
 
 public class woundABMBuilderSim implements ContextBuilder<Object>{
-
+	
 	@Override
 /* Constructor */
 	public Context<Object> build(Context<Object> context) {
 		
+		// Pull parameters
+		Parameters p = RunEnvironment.getInstance().getParameters();
+	
 		// Cell seeding parameters
-		int initialCellCount = 576;				// cells (1cell/400um^2)
-		int endTick = 1009;						// hr
+		int initialCellCount = (Integer) p.getValue("initialCellCount");	// cells (1cell/400um^2)
+		int endTick = (Integer) p.getValue("endTick");						// hr
 		
 		// Build subcontext "woundABMContext"
 		woundABMContextSim woundabmspace = new woundABMContextSim();

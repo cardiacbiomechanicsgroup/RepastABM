@@ -1,3 +1,37 @@
-<?xml version="1.0"?>
+<?xml version="1.0" ?>
 <sweep runs="1">
-</sweep>
+<parameter name="colRotation" type="constant" constant_type="boolean" value="true">
+</parameter>
+<parameter name="mitosisTime" type="constant" constant_type="double" value="24.0">
+</parameter>
+<parameter name="initialFiberDist" type="constant" constant_type="java.lang.String" value="Circumferential">
+</parameter>
+<parameter name="initialCellCount" type="constant" constant_type="int" value="576">
+</parameter>
+<parameter name="endTick" type="constant" constant_type="int" value="1009">
+</parameter>
+<parameter name="depositionTime" type="constant" constant_type="double" value="0.5">
+</parameter>
+<parameter name="sampleHeight" type="constant" constant_type="double" value="480.0">
+</parameter>
+<parameter name="sampleWidth" type="constant" constant_type="double" value="480.0">
+</parameter>
+<parameter name="degradationTime" type="constant" constant_type="double" value="0.5">
+</parameter>
+<parameter name="depoType" type="constant" constant_type="java.lang.String" value="Aligned">
+</parameter>
+<parameter name="mechs" type="constant" constant_type="java.lang.String" value="Biax">
+</parameter>
+<parameter name="includeFibrin" type="constant" constant_type="boolean" value="true">
+</parameter>
+<parameter name="apoptosisTime" type="constant" constant_type="double" value="240.0">
+</parameter>
+<parameter name="cellRemoval" type="constant" constant_type="boolean" value="true">
+</parameter>
+<parameter name="gridUnitSize" type="constant" constant_type="double" value="10.0">
+</parameter>
+<parameter name="Wc" type="list" value_type="double" values="1 2 3">
+<parameter name="Wm" type="list" value_type="double" values="1 2 3">
+<parameter name="Wp" type="list" value_type="double" values="1 2 3">
+<parameter name="Ws" type="list" value_type="double" values="1 2 3">
+</parameter></parameter></parameter></parameter></sweep>

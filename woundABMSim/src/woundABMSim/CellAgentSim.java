@@ -5,7 +5,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+
+import repast.simphony.engine.environment.RunEnvironment;
 import repast.simphony.engine.schedule.ScheduledMethod;
+import repast.simphony.parameter.Parameters;
 import repast.simphony.random.RandomHelper;
 import repast.simphony.space.grid.Grid;
 import repast.simphony.space.grid.GridPoint;
@@ -14,14 +17,19 @@ import repast.simphony.valueLayer.GridValueLayer;
 
 public class CellAgentSim {
 	
+	// Pull parameters
+	static Parameters p = RunEnvironment.getInstance().getParameters();
+	
 	// Geometry
-	private int gridWidth;				// grids
-	private int gridHeight;				// grids
-	private double gridUnitSize;		// 10.0, 5.0, or 2.5um
-	private double woundRadius = 113.0;	// um
-	private double CellRadius = 5.0;	// um
-	private int gridDiameter;			// Cell diameter in grids
-	private int cellGridArea;			// Cell area in grids
+	static double sampleWidth = (Double) p.getValue("sampleWidth");				// um
+	static double sampleHeight = (Double) p.getValue("sampleHeight");			// um
+	static double gridUnitSize = (Double) p.getValue("gridUnitSize");			// um
+	static int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);			// grids
+	static int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);		// grids
+	private double CellRadius = 5.0;											// um
+	private int gridDiameter = (int) Math.round(CellRadius*2/gridUnitSize);		// Cell diameter in grids
+	private double woundRadius = 113.0;											// um
+	private int cellGridArea;													// Cell area in grids
 	
 	// Tracking
 	private double apoptosisTime;		// hr
@@ -36,11 +44,16 @@ public class CellAgentSim {
 	private double degradationCounter;	// hr
 	
 	// Weighting factors
-	private static double Wcg = 0.167;	// 
-	private static double Ws = 0.167;	// 
-	private static double Wcf = 0.167;	// 
-	private static double Wc = 0.333;	// 
-
+	private static double gWp = (Double) p.getValue("Wp");	// Persistance cue weight
+	private static double gWs = (Double) p.getValue("Ws"); 	// Structural cue weight
+	private static double gWm = (Double) p.getValue("Wm");	// Mechanics cue weight
+	private static double gWc = (Double) p.getValue("Wc");	// Chemokine cue weight
+	private static double Wtotal = gWp+gWs+gWm+gWc;
+	private static double Wp = gWp/Wtotal;					// Persistance cue weight (normalized)
+	private static double Ws = gWs/Wtotal; 					// Structural cue weight (normalized)
+	private static double Wm = gWm/Wtotal;					// Mechanics cue weight (normalized)
+	private static double Wc = gWc/Wtotal;					// Chemokine cue weight (normalized)
+	
 	// Correction factors
 	private double alphaGeometric = woundRadius/2828.0;		// Cryo infarct radius = 2828 um;
 	private double alphaInfiltration = woundRadius/500.0; 	// Cryo infarct thickness = 500 um;
@@ -58,8 +71,8 @@ public class CellAgentSim {
 	private double chemolevel;		//
 	
 	// Boolean
-	private static boolean cellRemoval = true;
-	private static boolean booleanColRotation = true;
+	private static boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
+	private static boolean colRotation = (Boolean) p.getValue("colRotation");
 	
 	// Collagen
 	private int fiberBinSIZE = 5;				// 5 degrees per collagen bin
@@ -84,23 +97,17 @@ public class CellAgentSim {
 	private double rhoAdj = 1.0;		// Arbitrary guidance cue magnitude scaling factor
 	private double adjkSpatial = 1.0;	// (check for other adj values, should they really be here?)
 
-	private static String depoType = (String) "Aligned"; // "Aligned" or "Random"
+	private static String depoType = (String) p.getValue("depoType"); 	// "Aligned" or "Random"
 	
-	private static double gMitosisTime = 24;
-	private static double gApoptosisTime = 240;
-	private static double gDepositionTime = 0.5;
-	private static double gDegradationTime = 0.5;
+	private static double gMitosisTime = (Double) p.getValue("mitosisTime");
+	private static double gApoptosisTime = (Double) p.getValue("apoptosisTime");
+	private static double gDepositionTime = (Double) p.getValue("depositionTime");
+	private static double gDegradationTime = (Double) p.getValue("degradationTime");
 	
 /* Constructors */
 	//(remove parameters section)
 	public CellAgentSim() {
 		// Assign parameters
-		gridUnitSize = woundABMContextSim.getGridSize();
-		int[] dimensions = woundABMContextSim.getModelDimension();
-		gridHeight = dimensions[0];
-		gridWidth = dimensions[1];
-		gridDiameter = (int) Math.round(CellRadius*2/gridUnitSize);
-
 		this.mitosisTime = gMitosisTime;
 		this.mitosisAge = RandomHelper.nextDoubleFromTo(0, gMitosisTime);
 		this.apoptosisTime = gApoptosisTime;
@@ -120,12 +127,6 @@ public class CellAgentSim {
 			double chemolevel) {
 
 		// Assign parameters
-		gridUnitSize = woundABMContextSim.getGridSize();
-		int[] dimensions = woundABMContextSim.getModelDimension();
-		gridHeight = dimensions[0];
-		gridWidth = dimensions[1];
-		gridDiameter = (int) Math.round(CellRadius*2/gridUnitSize);
-		
 		this.apoptosisTime = apoptosisTime;
 		this.apoptosisAge = apoptosisAge;
 		this.mitosisTime = mitosisTime;
@@ -275,28 +276,28 @@ public class CellAgentSim {
 		cellSpeedMax = alphaInfiltration*10; 	// um/tick
 		
 		// Calculate guidance cue normalization factors based on maximum values
-		double Mcg = 0.5*CellRadius*MaxConcGradMag;
-		double Ms = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Ms = 0.0125	 
-		double Mcf = 1;
-		double Mc = cellSpeedMax;
+		double Mc = 0.5*CellRadius*MaxConcGradMag;
+		double Mm = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Ms = 0.0125	 
+		double Ms = 1;
+		double Mp = cellSpeedMax;
 
 		// Acquire chemokine, strain, fiber, and persistence cues
 		double[] chemoCue = getChemoCue(woundabmspace, x, y);
-		double CGM = chemoCue[0]; 
-		double CGX = chemoCue[1];
-		double CGY = chemoCue[2];
+		double CM = chemoCue[0]; 
+		double CX = chemoCue[1];
+		double CY = chemoCue[2];
 		double[] strainCue = getStrainCue(woundabmspace, x, y); 
-		double SM = strainCue[0]; 
-		double SX = strainCue[1];
-		double SY = strainCue[2];
+		double MM = strainCue[0]; 
+		double MX = strainCue[1];
+		double MY = strainCue[2];
 		double[] fiberCue = getColFiberCue(woundabmspace, x, y);
-		double CFM = fiberCue[0]; 
-		double CFX = fiberCue[1];
-		double CFY = fiberCue[2];	
+		double SM = fiberCue[0]; 
+		double SX = fiberCue[1];
+		double SY = fiberCue[2];	
 		double[] persistence = getPersistence(woundabmspace, x, y);
-		double CM = persistence[0];
-		double CX = persistence[1]; 
-		double CY = persistence[2];
+		double PM = persistence[0];
+		double PX = persistence[1]; 
+		double PY = persistence[2];
 		
 		// Write GridValueLayer of colMVA and colMVL
 		GridValueLayer colMVA = (GridValueLayer) woundabmspace.getValueLayer("Collagen MVA");
@@ -305,34 +306,34 @@ public class CellAgentSim {
 		colMVA.set(Math.toDegrees(fiberCue[3]), x, y);
 
 		// Calculate guidance cues strength using maximum value normalization an weighting factors
-		double Scg = (Wcg*CGM)/Mcg;
-		double Ss = (Ws*SM)/Ms;
-		double Scf = (Wcf*CFM)/Mcf;
 		double Sc = (Wc*CM)/Mc;
+		double Sm = (Wm*MM)/Mm;
+		double Ss = (Ws*SM)/Ms;
+		double Sp = (Wp*PM)/Mp;
 
 		// Calculate the resultant guidance cues from the weighted guidance cues unit vectors
 		double[] RX = new double[4];
 		double[] RY = new double[4];
 		double[] RM = new double[4];
-		CGX = Scg*CGX;
-		CGY = Scg*CGY;
-		SX = Ss*SX;
-		SY = Ss*SY;
-		CFX = Scf*CFX;
-		CFY = Scf*CFY;
 		CX = Sc*CX;
 		CY = Sc*CY;
-		RX[0] = CGX+CX+CFX+SX;
-		RY[0] = CGY+CY+CFY+SY;
+		MX = Sm*MX;
+		MY = Sm*MY;
+		SX = Ss*SX;
+		SY = Ss*SY;
+		PX = Sp*PX;
+		PY = Sp*PY;
+		RX[0] = CX+PX+SX+MX;
+		RY[0] = CY+PY+SY+MY;
 		RM[0] = Math.sqrt(Math.pow(RX[0], 2)+Math.pow(RY[0], 2));
-		RX[1] = CGX+CX-CFX+SX;
-		RY[1] = CGY+CY-CFY+SY;
+		RX[1] = CX+PX-SX+MX;
+		RY[1] = CY+PY-SY+MY;
 		RM[1] = Math.sqrt(Math.pow(RX[1], 2)+Math.pow(RY[1], 2));
-		RX[2] = CGX+CX+CFX-SX;
-		RY[2] = CGY+CY+CFY-SY;
+		RX[2] = CX+PX+SX-MX;
+		RY[2] = CY+PY+SY-MY;
 		RM[2] = Math.sqrt(Math.pow(RX[2], 2)+Math.pow(RY[2], 2));
-		RX[3] = CGX+CX-CFX-SX;
-		RY[3] = CGY+CY-CFY-SY;
+		RX[3] = CX+PX-SX-MX;
+		RY[3] = CY+PY-SY-MY;
 		RM[3] = Math.sqrt(Math.pow(RX[3], 2)+Math.pow(RY[3], 2));
 
 		// Find maximum resultant magnitude
@@ -364,7 +365,7 @@ public class CellAgentSim {
 		
 		// Calculate the resultant angle "theta" and normalized resultant magnitude "rho"
 		double theta = Math.atan2(RY[maxRMindex], RX[maxRMindex]);
-		double rho = rhoAdj*RM[maxRMindex]/(rhoTuning+Scf+Ss+Scg+Sc);
+		double rho = rhoAdj*RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
 		
 		// Correct rho outside of allowed range
 		if (rho > 0.9999) {
@@ -477,7 +478,7 @@ public class CellAgentSim {
 		ArrayList<GridValueLayer> fibringridValueLayerList = (ArrayList<GridValueLayer>)woundabmspace.fibrinGridValueLayerList();
 		
 		// Check for rotation
-		if (booleanColRotation == true) {
+		if (colRotation == true) {
 			collagenRotation(x, y, chemokine, gridvaluelayerlist);
 		}
 
@@ -512,32 +513,32 @@ public class CellAgentSim {
 	private double[] getChemoCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Load strain cue value layers
-		GridValueLayer CGM = (GridValueLayer) woundabmspace.getValueLayer("CGM");
-		GridValueLayer CGX = (GridValueLayer) woundabmspace.getValueLayer("CGX");
-		GridValueLayer CGY = (GridValueLayer) woundabmspace.getValueLayer("CGY");
+		GridValueLayer CM = (GridValueLayer) woundabmspace.getValueLayer("CM");
+		GridValueLayer CX = (GridValueLayer) woundabmspace.getValueLayer("CX");
+		GridValueLayer CY = (GridValueLayer) woundabmspace.getValueLayer("CY");
 		
 		// Get strain cue at cell location
-		double CGMabm = CGM.get(x, y);
-		double CGXabm = CGX.get(x, y); 
-		double CGYabm = CGY.get(x, y);
+		double CMabm = CM.get(x, y);
+		double CXabm = CX.get(x, y); 
+		double CYabm = CY.get(x, y);
 		
-		return new double[] {CGMabm, CGXabm, CGYabm};
+		return new double[] {CMabm, CXabm, CYabm};
 	}
 
 	// Returns a vector of strain cues
 	private double[] getStrainCue(woundABMContextSim woundabmspace, int x, int y) {
 		
 		// Load strain cue value layers
-		GridValueLayer SM = (GridValueLayer) woundabmspace.getValueLayer("SM");
-		GridValueLayer SX = (GridValueLayer) woundabmspace.getValueLayer("SX");
-		GridValueLayer SY = (GridValueLayer) woundabmspace.getValueLayer("SY");
+		GridValueLayer MM = (GridValueLayer) woundabmspace.getValueLayer("MM");
+		GridValueLayer MX = (GridValueLayer) woundabmspace.getValueLayer("MX");
+		GridValueLayer MY = (GridValueLayer) woundabmspace.getValueLayer("MY");
 		
 		// Get strain cue at cell location
-		double SMabm = SM.get(x, y);
-		double SXabm = SX.get(x, y);
-		double SYabm = SY.get(x, y);
+		double MMabm = MM.get(x, y);
+		double MXabm = MX.get(x, y);
+		double MYabm = MY.get(x, y);
 		
-		return new double[] {SMabm, SXabm, SYabm};
+		return new double[] {MMabm, MXabm, MYabm};
 	}
 
 	// Returns a vector of structural cues from collagen and fibrin content (recast fiberDist[i] to avoid array)
@@ -574,11 +575,11 @@ public class CellAgentSim {
 		double meanFiberAngle = 0.5*Math.atan2(meanFiberSumY, meanFiberSumX);
 		
 		// Set structural cue magnitude, x, and y components
-		double CFM = Math.sqrt(Math.pow(meanFiberSumX, 2)+Math.pow(meanFiberSumY, 2));
-		double CFX = Math.cos(meanFiberAngle);
-		double CFY = Math.sin(meanFiberAngle);
+		double SM = Math.sqrt(Math.pow(meanFiberSumX, 2)+Math.pow(meanFiberSumY, 2));
+		double SX = Math.cos(meanFiberAngle);
+		double SY = Math.sin(meanFiberAngle);
 		
-		return new double[] {CFM, CFX, CFY, meanFiberAngle};
+		return new double[] {SM, SX, SY, meanFiberAngle};
 	}
 
 	// Returns the direction and magnitude of cell persistence
@@ -596,12 +597,12 @@ public class CellAgentSim {
 		cellSpeedMin = alphaInfiltration*1;
 		cellSpeedMax = alphaInfiltration*10;
 		GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
-		double CM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
+		double PM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
 				(cellSpeedMax-cellSpeedMin))+cellSpeedMin;
-		double CX = Math.cos(Math.toRadians(this.angleSelection));
-		double CY = Math.sin(Math.toRadians(this.angleSelection));
+		double PX = Math.cos(Math.toRadians(this.angleSelection));
+		double PY = Math.sin(Math.toRadians(this.angleSelection));
 		
-		return new double[] {CM, CX, CY};
+		return new double[] {PM, PX, PY};
 	}
 
 	// Returns a set of angles (slow, change later) (send typeModal to GUI?)
@@ -1057,19 +1058,18 @@ public class CellAgentSim {
 	// Returns a data string of static fibroblast parameters for model specification
 	public static String[][] getFibroblastParameters() {
 
-		String heading = "DepoType,CollagenRot,Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,Wc,Wcg,Wcf,Ws";
-		String output = depoType+","+Boolean.toString(booleanColRotation)+","+
-				Boolean.toString(cellRemoval)+","+Double.toString(gMitosisTime)+","+
-				Double.toString(gApoptosisTime)+","+Double.toString(gDepositionTime)+","+
-				Double.toString(gDegradationTime)+","+Double.toString(Wc)+","+
-				Double.toString(Wcg)+","+Double.toString(Wcf)+","+Double.toString(Ws);
+		String heading = "DepoType,CollagenRot,Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
+		String output = depoType+","+Boolean.toString(colRotation)+","+Boolean.toString(cellRemoval)+","+
+				Double.toString(gMitosisTime)+","+Double.toString(gApoptosisTime)+","+
+				Double.toString(gDepositionTime)+","+Double.toString(gDegradationTime)+","+
+				Double.toString(Wp)+","+Double.toString(Wc)+","+Double.toString(Ws)+","+
+				Double.toString(Wm);
 
 		// Build data string
 		String[][] parameters = new String[1][2];
 		parameters[0][0] = heading;
 		parameters[0][1] = output;
 		
-
 		return parameters;
 	}
 }
