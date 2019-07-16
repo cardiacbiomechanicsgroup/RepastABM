@@ -52,13 +52,14 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private String initialFiberDist = (String) p.getValue("initialFiberDist");	// "Circumferential" "Longitudinal" or "Uniform"
 	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
 	
-	// Output file names
+	// Output file specification
+	private String outputDir = "output";
 	private Date date = new Date();
 	private DateFormat df = new SimpleDateFormat("yyyyMMdd_HHmmss");
 	private String modelTag = df.format(date);
-	private String woundParamFilename = "output\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundParameters.csv";
-	private String woundStatFilename = "output\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundStat.csv";
-	private String woundColAnDistFilename = "output\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundColFiberAngDist.csv";
+	private String woundParamFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundParameters.csv";
+	private String woundStatFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundStat.csv";
+	private String woundColAnDistFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundColFiberAngDist.csv";
 	
 /* Constructor */ 
 	public woundABMContextSim() {
@@ -585,6 +586,12 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		Grid<?> grid = (Grid<?>) getProjection("Cell Grid");
 		Iterable<CellAgentSim> cells = (Iterable<CellAgentSim>) grid.getObjects();
 		int cellSum = (int) cells.spliterator().getExactSizeIfKnown();
+		
+		// Make output file if it does not already exist
+		File directory = new File(outputDir);
+		if (!directory.exists()) {
+			directory.mkdir();
+		}
 		
 		// Build data strings
 		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin";
