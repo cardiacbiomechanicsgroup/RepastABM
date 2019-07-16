@@ -218,9 +218,20 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	// Initialize grid value layers of cues
 	@ScheduledMethod(start = 0, priority = 2)
 	public void initializeCueLayers() throws Exception {
-		String[] cueFileName = {"input\\MM_"+mechs+"_"+gridWidth+".csv", "input\\MX_"+mechs+"_"+
-				gridWidth+".csv", "input\\MY_"+mechs+"_"+gridWidth+".csv", "input\\CM_"+gridWidth+".csv", 
-				"input\\CX_"+gridWidth+".csv", "input\\CY_"+gridWidth+".csv"};
+		
+		// Check if input file is in current directory (added for batch runs)
+		String path;
+		File f = new File("input");
+		if (!f.exists()) {	// change path to your directory
+			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
+		} 
+		else {
+			path = "intput";
+		}
+		
+		String[] cueFileName = {path+"\\MM_"+mechs+"_"+gridWidth+".csv", path+"\\MX_"+mechs+"_"+
+				gridWidth+".csv", path+"\\MY_"+mechs+"_"+gridWidth+".csv", path+"\\CM_"+gridWidth+".csv", 
+				path+"\\CX_"+gridWidth+".csv", path+"\\CY_"+gridWidth+".csv"};
 		GridValueLayer MM = (GridValueLayer) getValueLayer("MM");
 		GridValueLayer MX = (GridValueLayer) getValueLayer("MX");	
 		GridValueLayer MY = (GridValueLayer) getValueLayer("MY");
