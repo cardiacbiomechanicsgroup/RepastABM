@@ -201,12 +201,22 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	@ScheduledMethod(start = 0, priority = 3)
 	public void initializeChemoLayer() throws Exception {
 
+		// Check if input file is in current directory (added for batch runs)
+		String path;
+		File f = new File("input");
+		if (!f.exists()) {	// change path to your directory
+			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
+		} 
+		else {
+			path = "intput";
+		}
+
 		// If the file with the correct gridWidth does not exist, interpolate one
-		String csvFilename = "input\\ConcMean_"+gridWidth+".csv";
+		String csvFilename = path+"\\ConcMean_"+gridWidth+".csv";
 		File file = new File(csvFilename);
 		if (!file.exists()) {
 			GridInterpolator gi = new GridInterpolator();
-			gi.interpolateCSV("input\\ConcMean_48.csv", gridWidth);
+			gi.interpolateCSV(path+"\\ConcMean_48.csv", gridWidth);
 		}
 		
 		// Set chemokine value layer to CSV values
