@@ -26,8 +26,9 @@ public class CellAgentSim {
 	static double gridUnitSize = (Double) p.getValue("gridUnitSize");			// um
 	static int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);			// grids
 	static int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);		// grids
-	private double CellRadius = 5.0;											// um
-	private int gridDiameter = (int) Math.round(CellRadius*2/gridUnitSize);		// Cell diameter in grids
+	private double cellRadius = 5.0;											// um
+	private double cellArea = Math.PI*Math.pow(cellRadius, 2);					// um^2
+	private int gridDiameter = (int) Math.round(cellRadius*2/gridUnitSize);		// Cell diameter in grids
 	private double woundRadius = 113.0;											// um
 	private int cellGridArea;													// Cell area in grids
 	
@@ -59,10 +60,10 @@ public class CellAgentSim {
 	private double alphaInfiltration = woundRadius/500.0; 	// Cryo infarct thickness = 500 um;
 
 	// Migration
-	private double cellSpeedMin = 1.0;	// um/hr		(doesn't need to be defined this way here)
-	private double cellSpeedMax = 10.0; // um/hr
+	private double cellSpeedMin = alphaInfiltration*1.0;// (M) 1.0;	// um/hr		(doesn't need to be defined this way here)
+	private double cellSpeedMax = alphaInfiltration*10.0;// (M) 10.0; // um/hr
 	public double angleSelection;		// deg
-	private double adjkMigration = 1.0;	// 
+	// (M) private double adjkMigration = 1.0;	// 
 	private boolean moveboolean;
 	
 	// Chemokine
@@ -77,25 +78,25 @@ public class CellAgentSim {
 	// Collagen
 	private int fiberBinSIZE = 5;				// 5 degrees per collagen bin
 	private double kColRotMax = 3.0;			// deg/hr
-	private double kColRotMin = 0.3;			// deg/hr (0.1*kColRotMax)
-	private double adjkColRot = 0.5;			// 
-	private double adjkOffsetFrac = 1.0;		// 
+	private double kColRotMin = 0.3;			// deg/hr
+	// (M) private double adjkColRot = 0.5;			// 
+	// (M) private double adjkOffsetFrac = 1.0;		// 
 	private double kColGenMax = 17.9874;		// fiber/cell/hr
 	private double kColGenMin = 0.1799;			// fiber/cell/hr
 	private double kColGen;						// fiber/cell/hr
-	private double adjkColGen = 1.2732; 		// 10*10/(pi*5*5)=1.2732
-	private double adjkAlignedDep = 0.8;      	// 
-	private double kColDegMax = 0.0038;   		// unitless
-	private double kColDegMin = 3.7676e-04;		// unitless
+	private double adjColGen; 		    		// adjust collagen generation to cell grid area
+	private double alignedDepFrac = 0.8;      	// 
+	private double kColDegMax = 0.0038;   		// unitless scaling factor
+	private double kColDegMin = 3.7676e-04;		// unitless scaling factor
 	private double kColDeg;						// %
 	private double kFibDeg;						// %
-	private double adjkColDeg = 1;				// 
-	private double adjkFibDeg = 1;				// 
+	// (M) private double adjkColDeg = 1;				// 
+	// (M) private double adjkFibDeg = 1;				// 
 	
 	// Misc
 	private double timeStep =0.5;		// hr
-	private double rhoAdj = 1.0;		// Arbitrary guidance cue magnitude scaling factor
-	private double adjkSpatial = 1.0;	// (check for other adj values, should they really be here?)
+	// (M) private double rhoAdj = 1.0;		// Arbitrary guidance cue magnitude scaling factor
+	// (M) private double adjkSpatial = 1.0;	// (check for other adj values, should they really be here?)
 
 	private static String depoType = (String) p.getValue("depoType"); 	// "Aligned" or "Random"
 	
@@ -159,7 +160,7 @@ public class CellAgentSim {
 		}
 	}
 	
-	// Initialize chemokine-dependent apoptosis, mitosis, and migration time (add to step method)
+	// Initialize chemokine-dependent apoptosis, mitosis, and migration time (add to step method) 
 	@ScheduledMethod(start = 0.2, interval = 0.5, priority = 2)
 	public void setChemokineProcess() {
 		woundABMContextSim woundabmspace = (woundABMContextSim) ContextUtils.getContext(this);
@@ -175,13 +176,13 @@ public class CellAgentSim {
 		this.mitosisTime = effectiveChemokine*(mitosisMin-mitosisMax)+mitosisMax;
 		
 		// Define chemokine dependent migration to speed up wound closure
-		cellSpeedMin = adjkMigration*alphaInfiltration*1.0;
-		cellSpeedMax = adjkMigration*alphaInfiltration*10.0;
+		// (M) cellSpeedMin = adjkMigration*alphaInfiltration*1.0;
+		// (M) cellSpeedMax = adjkMigration*alphaInfiltration*10.0;
 		double cellSpeed = effectiveChemokine*(cellSpeedMax-cellSpeedMin)+cellSpeedMin;
 		this.migrationTime = gridUnitSize/cellSpeed;
 	}
 
-	// Agent decision tree
+	// Agent decision tree (move adjColGen to earlier method)
 	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 1)
 	public void step() {
 		woundABMContextSim woundABMSpace = (woundABMContextSim) ContextUtils.getContext(this);
@@ -211,8 +212,8 @@ public class CellAgentSim {
 			// Get grids covered by the cell
 			List<GridPoint> coveredSites = cellCoverage(x, y);
 			cellGridArea = coveredSites.size();
-			kColGenMax = 17.9874/cellGridArea;	// fiber/cell/hr
-			kColGenMin = 0.1799/cellGridArea;	// fiber/cell/hr
+			adjColGen = cellGridArea*Math.pow(gridUnitSize, 2)/cellArea;	//10*10/(pi*5*5)=1.2732
+
 			
 			// Deposit, degrade, and rotate collagen in the grids beneath the cell
 			for (GridPoint site : coveredSites) {
@@ -232,7 +233,7 @@ public class CellAgentSim {
 	}
 
 /* Secondary methods */
-	// Mitosis method (fix get(site))
+	// Mitosis method (fix get(site)) (move constants to class loading or static method)
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void mitose(woundABMContextSim woundabmspace, Grid grid, int x, int y) {
 		
@@ -276,7 +277,7 @@ public class CellAgentSim {
 		cellSpeedMax = alphaInfiltration*10; 	// um/tick
 		
 		// Calculate guidance cue normalization factors based on maximum values
-		double Mc = 0.5*CellRadius*MaxConcGradMag;
+		double Mc = 0.5*cellRadius*MaxConcGradMag;
 		double Mm = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Ms = 0.0125	 
 		double Ms = 1;
 		double Mp = cellSpeedMax;
@@ -365,7 +366,8 @@ public class CellAgentSim {
 		
 		// Calculate the resultant angle "theta" and normalized resultant magnitude "rho"
 		double theta = Math.atan2(RY[maxRMindex], RX[maxRMindex]);
-		double rho = rhoAdj*RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
+		// (M) double rho = rhoAdj*RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
+		double rho = RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
 		
 		// Correct rho outside of allowed range
 		if (rho > 0.9999) {
@@ -440,7 +442,7 @@ public class CellAgentSim {
 	private List<GridPoint> cellCoverage(int x, int y) {
 
 		// Iterate through neighbors
-		int extent = (int) Math.floor(CellRadius/gridUnitSize)+1;
+		int extent = (int) Math.floor(cellRadius/gridUnitSize)+1;
 		List<GridPoint> coveredSites = new ArrayList<GridPoint>();
 		for (int i = -extent; i <= extent; i++) {
 			for (int j = -extent; j <= extent; j++) {
@@ -449,7 +451,7 @@ public class CellAgentSim {
 				
 				// Check radial distance
 				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
-				if (dist <= CellRadius+1) {
+				if (dist <= cellRadius+1) {
 					
 					// Wrapped space
 					if (xCoor < 0) {
@@ -594,8 +596,8 @@ public class CellAgentSim {
 		}
 		
 		// Calculate cell direction magnitude um/hr
-		cellSpeedMin = alphaInfiltration*1;
-		cellSpeedMax = alphaInfiltration*10;
+		// (M) cellSpeedMin = alphaInfiltration*1;
+		// (M) cellSpeedMax = alphaInfiltration*10;
 		GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
 		double PM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
 				(cellSpeedMax-cellSpeedMin))+cellSpeedMin;
@@ -694,12 +696,13 @@ public class CellAgentSim {
 		return binProb;
 	}
 
-	// Rotate collagen (shortened bin assignment) (make kColRot global?)
+	// Rotate collagen (shortened bin assignment) (make kColRot global?) (remove multiple calculations)
 	public void collagenRotation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList) {
 		
 		// Calculate collagen fiber rotation constant based on chemokine concentration
 		double kColRot = ((chemokine.get(x,y)-concMin)/(concMax-concMin)*(kColRotMax-kColRotMin))+kColRotMin;
-
+		double Q = Math.ceil(kColRot*timeStep/2);
+		
 		// Get all 36 bins of collagen
 		int binNum= gridValueLayerList.size();
 		double [] colContent = new double[binNum];
@@ -713,7 +716,7 @@ public class CellAgentSim {
 		double radAngle = Math.toRadians(this.angleSelection);
 		double cellAngle = Math.toDegrees(Math.atan(Math.sin(radAngle)/Math.cos(radAngle)));
 		double fiberBin;
-		double rotationInterval = 0.5;
+		// (M) double rotationInterval = 0.5;
 		for (int j = 0; j < binNum; j++) {	
 
 			// Get fiber offset from cell angle in radians
@@ -721,19 +724,19 @@ public class CellAgentSim {
 			double newAngle = 360;
 			double fiberOffset = Math.toRadians(cellAngle-fiberBin);
 			if ((Math.tan(fiberOffset) > 0) && (Math.abs(Math.sin(fiberOffset)) != 1)) {// fiberOffset < 90
-				newAngle = fiberBin+(kColRot*adjkColRot*rotationInterval*adjkSpatial*
-						(Math.abs(Math.sin(fiberOffset))));
+				// (M) newAngle = fiberBin+(kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
+				newAngle = fiberBin+(kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
 			} else if ((Math.tan(fiberOffset) <= 0) && (Math.abs(Math.sin(fiberOffset)) != 1)) {// fiberOffset > 90
-				newAngle = fiberBin-(kColRot*adjkColRot*rotationInterval*adjkSpatial*
-						(Math.abs(Math.sin(fiberOffset))));
+				// (M) newAngle = fiberBin-(kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
+				newAngle = fiberBin-(kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
 			} else if (Math.abs(Math.sin(fiberOffset)) == 1) {// fiberOffset ~= 90
 				double flip = 1;
 				int dice = RandomHelper.nextIntFromTo(0,1);
 				if (dice == 1) {
 					flip = -1;
 				}
-				newAngle = fiberBin+(flip*kColRot*adjkColRot*rotationInterval*adjkSpatial*
-						(Math.abs(Math.sin(fiberOffset))));
+				// (M) newAngle = fiberBin+(flip*kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
+				newAngle = fiberBin+(flip*kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
 			}
 
 			// Detect and correct angles outside of fiber bin range
@@ -743,7 +746,7 @@ public class CellAgentSim {
 				newAngle = newAngle-180;
 			}
 			
-			// Map newAngle to the nearest bin (can be substituted by code in Deposition method)
+			// Map newAngle to the nearest bin (can be substituted by code in Deposition method) (move rotation bin assignment up)
 			double min = 360;
 			int minIndex = 99;
 			double rotBins = 360;
@@ -765,7 +768,8 @@ public class CellAgentSim {
 
 			// Rotate collagen
 			int count2indx = 99;
-			double rotFrac = adjkOffsetFrac*(newAngle-rotBins)/5;
+			// (M) double rotFrac = adjkOffsetFrac*(newAngle-rotBins)/5;
+			double rotFrac = (newAngle-rotBins)/5;
 			double temp1;
 			double temp2;
 			if (rotFrac >= 0) { //kept
@@ -796,7 +800,7 @@ public class CellAgentSim {
 		}
 	}
 	
-	// Fiber degradation method
+	// Fiber degradation method (Replace degradationInterval with timeStep)
 	public void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> fibringridValueLayerList, double degrationInterval) {
 
 		// Calculate fiber degradation constants with respect to chemokine concentration
@@ -809,7 +813,8 @@ public class CellAgentSim {
 
 			// Collagen degradation 
 			double colContent = gridValueLayerList.get(i).get(x, y);
-			double newColContent = colContent*(1-kColDeg*adjkColDeg*degrationInterval);
+			// (M) double newColContent = colContent*(1-kColDeg*adjkColDeg*degrationInterval);
+			double newColContent = colContent*(1-kColDeg*degrationInterval);
 			gridValueLayerList.get(i).set(newColContent, x, y);
 
 			// Fibrin degradation (only within wound)
@@ -817,13 +822,14 @@ public class CellAgentSim {
 			double woundSize = (double) woundRadius/gridUnitSize;
 			if (distToCenter < woundSize) {
 				double fibrinContent = fibringridValueLayerList.get(i).get(x, y);
-				double newFibrinContent = fibrinContent*(1-kFibDeg*adjkFibDeg*degrationInterval);
+				// (M) double newFibrinContent = fibrinContent*(1-kFibDeg*adjkFibDeg*degrationInterval);
+				double newFibrinContent = fibrinContent*(1-kFibDeg*degrationInterval);
 				fibringridValueLayerList.get(i).set(newFibrinContent, x, y);
 			}
 		}
 	}
 	
-	// Aligned collagen deposition method (random max collagen check) (shortened bin assignment) (this.chemolevel required?)
+	// Aligned collagen deposition method (MATLAB deltaCol is divided by number of local collagen fibers) (alignedDepFrac is not in MATLAB model) (random max collagen check) (shortened bin assignment) (this.chemolevel required?) (Replace depositionIterval with timeStep)
 	public void collagenDeposition(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, double depositionInterval) {
 
 		// Calculate collagen fiber generation rate based on chemokine concentration
@@ -877,13 +883,13 @@ public class CellAgentSim {
 		if (colContent < 1000000) {
 			
 			// Deposit the aligned collagen
-			double deltaCol = depositionInterval*adjkColGen*kColGen;
-			double newColContent = colContent+(deltaCol*adjkAlignedDep);
+			double deltaCol = depositionInterval*adjColGen*kColGen;
+			double newColContent = colContent+(deltaCol*alignedDepFrac);
 			gridValueLayerList.get(bin).set(newColContent, x, y);
 			
 			// Deposit a portion of the collagen randomly
 			int randBin = RandomHelper.nextIntFromTo(0,35);
-			double newColContent2 = gridValueLayerList.get(randBin).get(x, y)+deltaCol*(1-adjkAlignedDep);
+			double newColContent2 = gridValueLayerList.get(randBin).get(x, y)+deltaCol*(1-alignedDepFrac);
 			gridValueLayerList.get(randBin).set(newColContent2, x, y);
 		} else {
 			System.out.println("Collagen content exceeds maximum value");
