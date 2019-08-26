@@ -28,14 +28,27 @@ import repast.simphony.valueLayer.GridValueLayer;
 public class woundABMContextSim extends DefaultContext<Object> {
 	
 	// Pull parameters
-	static Parameters p = RunEnvironment.getInstance().getParameters();
+	Parameters p = RunEnvironment.getInstance().getParameters();
+	
+	// Fibroblast parameters
+	private double Wp = (Double) p.getValue("Wp");	// Persistance cue weight
+	private double Ws = (Double) p.getValue("Ws"); 	// Structural cue weight
+	private double Wm = (Double) p.getValue("Wm");	// Mechanics cue weight
+	private double Wc = (Double) p.getValue("Wc");	// Chemokine cue weight
+	private String depoType = (String) p.getValue("depoType"); 	// "Aligned" or "Random"
+	private double gMitosisTime = (Double) p.getValue("mitosisTime");
+	private double gApoptosisTime = (Double) p.getValue("apoptosisTime");
+	private double gDepositionTime = (Double) p.getValue("depositionTime");
+	private double gDegradationTime = (Double) p.getValue("degradationTime");
+	private boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
+	private boolean colRotation = (Boolean) p.getValue("colRotation");
 	
 	// Geometry
-	static double sampleWidth = (Double) p.getValue("sampleWidth");			// um
-	static double sampleHeight = (Double) p.getValue("sampleHeight");			// um
-	static double gridUnitSize = (Double) p.getValue("gridUnitSize");		// um
-	static int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);		// grids
-	static int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);	// grids
+	double sampleWidth = (Double) p.getValue("sampleWidth");			// um
+	double sampleHeight = (Double) p.getValue("sampleHeight");			// um
+	double gridUnitSize = (Double) p.getValue("gridUnitSize");		// um
+	int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);		// grids
+	int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);	// grids
 	private double cellRadius = 5.0;										// um
 	private double woundRadius = 113.0; 									// um
 	
@@ -43,7 +56,8 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	ArrayList<ArrayList<double[]>> initialFiberArrayList;
 	private ArrayList<GridValueLayer> gridvaluelayerlist;
 	private ArrayList<GridValueLayer> fibringridvaluelayerlist;
-	private String[] basicValueLayer = {"Collagen MVA", "Collagen MVL", "Collagen Sum", "Fibrin Sum"};
+	// (C) private String[] basicValueLayer = {"Collagen MVA", "Collagen MVL", "Collagen Sum", "Fibrin Sum"};
+	private String[] basicValueLayer = {"Collagen Sum", "Fibrin Sum"};
 	private String[] cueValueLayer = {"CM", "CX", "CY", "MM", "MX", "MY"};
 	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
@@ -120,8 +134,8 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	@ScheduledMethod(start = 0, priority = 0.5, interval = 1)
 	public void CollagenValueLayer() {
 		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
-		GridValueLayer colMVA = (GridValueLayer) getValueLayer("Collagen MVA");
-		GridValueLayer colMVL = (GridValueLayer) getValueLayer("Collagen MVL");
+		// (C) GridValueLayer colMVA = (GridValueLayer) getValueLayer("Collagen MVA");
+		// (C) GridValueLayer colMVL = (GridValueLayer) getValueLayer("Collagen MVL");
 		GridValueLayer fibSum = (GridValueLayer) getValueLayer("Fibrin Sum");
 		
 		double fiberBin = 0;
@@ -140,15 +154,15 @@ public class woundABMContextSim extends DefaultContext<Object> {
 					tempColSum = tempColSum+value;
 					tempFibSum = tempFibSum+fibringridvaluelayerlist.get(i).get(x, y);
 				}
-				double localMeanColSumX = localFiberSumX/tempColSum;
-				double localMeanColSumY = localFiberSumY/tempColSum;
-				double localColMVA = 0.5*Math.toDegrees(Math.atan2(localMeanColSumY, localMeanColSumX));
-				double localColMVL = Math.sqrt(Math.pow(localMeanColSumX,2)+Math.pow(localMeanColSumY,2));		
+				// (C) double localMeanColSumX = localFiberSumX/tempColSum;
+				// (C) double localMeanColSumY = localFiberSumY/tempColSum;
+				// (C) double localColMVA = 0.5*Math.toDegrees(Math.atan2(localMeanColSumY, localMeanColSumX));
+				// (C) double localColMVL = Math.sqrt(Math.pow(localMeanColSumX,2)+Math.pow(localMeanColSumY,2));		
 				
 				// Update grid value layers			
 				colSum.set(tempColSum, x, y);
-				colMVA.set(localColMVA, x, y);
-				colMVL.set(localColMVL, x, y);	
+				// (C) colMVA.set(localColMVA, x, y);
+				// (C) colMVL.set(localColMVL, x, y);	
 				fibSum.set(tempFibSum, x, y);
 			}
 		}
@@ -208,7 +222,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
 		} 
 		else {
-			path = "intput";
+			path = "input";
 		}
 
 		// If the file with the correct gridWidth does not exist, interpolate one
@@ -236,7 +250,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
 		} 
 		else {
-			path = "intput";
+			path = "input";
 		}
 		
 		String[] cueFileName = {path+"\\MM_"+mechs+"_"+gridWidth+".csv", path+"\\MX_"+mechs+"_"+
@@ -615,15 +629,20 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 		
 		// Build data strings
-		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin";
+		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin,DepoType,CollagenRot,..."
+				+ "Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,WpWc,Ws,Wm";
 		String output = Double.toString(gridUnitSize)+","+Double.toString(sampleWidth)+","+
 				Double.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
-				initialFiberDist+","+Boolean.toString(includeFibrin);
-		String[][] fibroblastParameters = CellAgentSim.getFibroblastParameters();
+				initialFiberDist+","+Boolean.toString(includeFibrin)+","+depoType+","+
+				Boolean.toString(colRotation)+","+Boolean.toString(cellRemoval)+","+
+				Double.toString(gMitosisTime)+","+Double.toString(gApoptosisTime)+","+
+				Double.toString(gDepositionTime)+","+Double.toString(gDegradationTime)+","+
+				Double.toString(Wp)+","+Double.toString(Wc)+","+Double.toString(Ws)+","+
+				Double.toString(Wm);
 		
 		StringBuilder paramBuilder = new StringBuilder();
-		paramBuilder.append(heading+","+fibroblastParameters[0][0]+"\n");
-		paramBuilder.append(output+","+fibroblastParameters[0][1]+"\n");
+		paramBuilder.append(heading+"\n");
+		paramBuilder.append(output+"\n");
 		
 		// Write data to console
 		System.out.println(paramBuilder);

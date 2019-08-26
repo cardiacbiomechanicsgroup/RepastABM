@@ -7,95 +7,111 @@
 
 clear; close all; clc
 
-C125_IDs={'output\UniaxC_1.25_20190630_174609','output\UniaxC_1.25_20190630_202605'};
-C25_IDs={'output\UniaxC_2.5_20190627_164636','output\UniaxC_2.5_20190627_191442','output\UniaxC_2.5_20190627_175912','output\UniaxC_2.5_20190627_164636'};
-C5_IDs={'output\UniaxC_5.0_20190629_175543','output\UniaxC_5.0_20190629_185544','output\UniaxC_5.0_20190629_194740','output\UniaxC_5.0_20190629_205704'};
-C10_IDs={'output\UniaxC_10.0_20190629_140434','output\UniaxC_10.0_20190629_145841','output\UniaxC_10.0_20190629_155218','output\UniaxC_10.0_20190629_164517'};
+% C25_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\adjRedo_batch\UniaxC_2.5_20190802_111248'};
+% C5_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\adjRedo_batch\UniaxC_5.0_20190802_104953'};
+% C10_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\adjRemoved_batch\UniaxC_10.0_20190802_102620'};
+% 
+% L25_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_2.5_20190813_140619'};
+% L5_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_5.0_20190813_135313'};
+% L10_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_10.0_20190813_143128'};
+% 
+L25_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_2.5_20190814_141250'};
+L5_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_5.0_20190814_135655'};
+L10_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\UniaxL_10.0_20190814_143933'};
+% 
+% B25_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\adjRedo_batch\Biax_2.5_20190802_113436'};
+% B5_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\adjRedo_batch\Biax_5.0_20190802_104937'};
+% B10_IDs={'C:\Users\abake\Desktop\WoundABM\woundABMSim\output\Biax_10.0_20190806_204710'}; %Biax_10.0_20190806_190727
 
-L125_IDs={'output\UniaxL_1.25_20190628_204100','output\UniaxL_1.25_20190629_002514'};
-L25_IDs={'output\UniaxL_2.5_20190628_091210','output\UniaxL_2.5_20190628_101349','output\UniaxL_2.5_20190628_113738','output\UniaxL_2.5_20190628_125020'};
-L5_IDs={'output\UniaxL_5.0_20190628_150822','output\UniaxL_5.0_20190628_170140','output\UniaxL_5.0_20190628_192546','output\UniaxL_5.0_20190629_094458'};
-L10_IDs={'output\UniaxL_10.0_20190629_103416','output\UniaxL_10.0_20190629_112720','output\UniaxL_10.0_20190629_121836','output\UniaxL_10.0_20190629_131332'};
+% C125_IDs={'output\UniaxC_1.25_20190630_174609','output\UniaxC_1.25_20190630_202605'};
+% C25_IDs={'output\UniaxC_2.5_20190627_164636','output\UniaxC_2.5_20190627_191442','output\UniaxC_2.5_20190627_175912','output\UniaxC_2.5_20190627_164636'};
+% C5_IDs={'output\UniaxC_5.0_20190629_175543','output\UniaxC_5.0_20190629_185544','output\UniaxC_5.0_20190629_194740','output\UniaxC_5.0_20190629_205704'};
+% C10_IDs={'output\UniaxC_10.0_20190629_140434','output\UniaxC_10.0_20190629_145841','output\UniaxC_10.0_20190629_155218','output\UniaxC_10.0_20190629_164517'};
+% 
+% L125_IDs={'output\UniaxL_1.25_20190628_204100','output\UniaxL_1.25_20190629_002514'};
+% L25_IDs={'output\UniaxL_2.5_20190628_091210','output\UniaxL_2.5_20190628_101349','output\UniaxL_2.5_20190628_113738','output\UniaxL_2.5_20190628_125020'};
+% L5_IDs={'output\UniaxL_5.0_20190628_150822','output\UniaxL_5.0_20190628_170140','output\UniaxL_5.0_20190628_192546','output\UniaxL_5.0_20190629_094458'};
+% L10_IDs={'output\UniaxL_10.0_20190629_103416','output\UniaxL_10.0_20190629_112720','output\UniaxL_10.0_20190629_121836','output\UniaxL_10.0_20190629_131332'};
+% 
+% B125_IDs={'output\Biax_1.25_20190629_233621','output\Biax_1.25_20190629_233621'};
+% B25_IDs={'output\Biax_2.5_20190630_143237','output\Biax_2.5_20190630_153514','output\Biax_2.5_20190630_163726','output\Biax_2.5_20190630_132351'};
+% B5_IDs={'output\Biax_5.0_20190630_104730','output\Biax_5.0_20190630_114027','output\Biax_5.0_20190630_122748','output\Biax_5.0_20190630_094131'};
+% B10_IDs={'output\Biax_10.0_20190629_215712','output\Biax_10.0_20190629_224650','output\Biax_10.0_20190630_075959','output\Biax_10.0_20190630_084518'};
 
-B125_IDs={'output\Biax_1.25_20190629_233621','output\Biax_1.25_20190629_233621'};
-B25_IDs={'output\Biax_2.5_20190630_143237','output\Biax_2.5_20190630_153514','output\Biax_2.5_20190630_163726','output\Biax_2.5_20190630_132351'};
-B5_IDs={'output\Biax_5.0_20190630_104730','output\Biax_5.0_20190630_114027','output\Biax_5.0_20190630_122748','output\Biax_5.0_20190630_094131'};
-B10_IDs={'output\Biax_10.0_20190629_215712','output\Biax_10.0_20190629_224650','output\Biax_10.0_20190630_075959','output\Biax_10.0_20190630_084518'};
+% % Compare 2.5 um Repast ABM with continuous MATLAB ABM
+% model_C25=averageModels(readModelData(C25_IDs{1}));%,readModelData(C25_IDs{2}),readModelData(C25_IDs{3}),readModelData(C25_IDs{4}));
+% plotRepastABMStats(1,model_C25);
+% plotMatlabABMStats(1,'UniaxC');
+% formatStatPlot(1,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(2,model_C25);
+% plotMatlabABMHist(2,'UniaxC');
+% formatHistPlot(2,{'Repast 2.5 \mu m','MATLAB Continuous'});
 
-% Compare 2.5 um Repast ABM with continuous MATLAB ABM
-model_C25=averageModels(readModelData(C25_IDs{1}),readModelData(C25_IDs{2}),readModelData(C25_IDs{3}),readModelData(C25_IDs{4}));
-plotRepastABMStats(1,model_C25);
-plotMatlabABMStats(1,'UniaxC');
-formatStatPlot(1,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(2,model_C25);
-plotMatlabABMHist(2,'UniaxC');
-formatHistPlot(2,{'Repast 2.5 \mu m','MATLAB Continuous'});
+model_L25=averageModels(readModelData(L25_IDs{1}));%,readModelData(L25_IDs{2}),readModelData(L25_IDs{3}),readModelData(L25_IDs{4}));
+% plotRepastABMStats(3,model_L25);
+% plotMatlabABMStats(3,'UniaxL');
+% formatStatPlot(3,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(4,model_L25);
+% plotMatlabABMHist(4,'UniaxL');
+% formatHistPlot(4,{'Repast 2.5 \mu m','MATLAB Continuous'});
 
-model_L25=averageModels(readModelData(L25_IDs{1}),readModelData(L25_IDs{2}),readModelData(L25_IDs{3}),readModelData(L25_IDs{4}));
-plotRepastABMStats(3,model_L25);
-plotMatlabABMStats(3,'UniaxL');
-formatStatPlot(3,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(4,model_L25);
-plotMatlabABMHist(4,'UniaxL');
-formatHistPlot(4,{'Repast 2.5 \mu m','MATLAB Continuous'});
+% model_B25=averageModels(readModelData(B25_IDs{1}));%,readModelData(B25_IDs{2}),readModelData(B25_IDs{3}),readModelData(B25_IDs{4}));
+% plotRepastABMStats(5,model_B25);
+% plotMatlabABMStats(5,'Biax');
+% formatStatPlot(5,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(6,model_B25);
+% plotMatlabABMHist(6,'Biax');
+% formatHistPlot(6,{'Repast 2.5 \mu m','MATLAB Continuous'});
 
-model_B25=averageModels(readModelData(B25_IDs{1}),readModelData(B25_IDs{2}),readModelData(B25_IDs{3}),readModelData(B25_IDs{4}));
-plotRepastABMStats(5,model_B25);
-plotMatlabABMStats(5,'Biax');
-formatStatPlot(5,{'Repast 2.5 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(6,model_B25);
-plotMatlabABMHist(6,'Biax');
-formatHistPlot(6,{'Repast 2.5 \mu m','MATLAB Continuous'});
-
-% Compare all grid sizes of Repast ABM with continuous MATLAB ABM
-model_C5=averageModels(readModelData(C5_IDs{1}),readModelData(C5_IDs{2}),readModelData(C5_IDs{3}),readModelData(C5_IDs{4}));
-model_C10=averageModels(readModelData(C10_IDs{1}),readModelData(C10_IDs{2}),readModelData(C10_IDs{3}),readModelData(C10_IDs{4}));
-plotRepastABMStats(7,model_C25, model_C5, model_C10);
-plotMatlabABMStats(7,'UniaxC');
-formatStatPlot(7,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(8,model_C25, model_C5, model_C10);
-plotMatlabABMHist(8,'UniaxC');
-formatHistPlot(8,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous'});
-
-model_L5=averageModels(readModelData(L5_IDs{1}),readModelData(L5_IDs{2}),readModelData(L5_IDs{3}),readModelData(L5_IDs{4}));
-model_L10=averageModels(readModelData(L10_IDs{1}),readModelData(L10_IDs{2}),readModelData(L10_IDs{3}),readModelData(L10_IDs{4}));
+% % Compare all grid sizes of Repast ABM with continuous MATLAB ABM
+% model_C5=averageModels(readModelData(C5_IDs{1}));%,readModelData(C5_IDs{2}),readModelData(C5_IDs{3}),readModelData(C5_IDs{4}));
+% model_C10=averageModels(readModelData(C10_IDs{1}));%,readModelData(C10_IDs{2}),readModelData(C10_IDs{3}),readModelData(C10_IDs{4}));
+% plotRepastABMStats(7,model_C25, model_C5, model_C10);
+% plotMatlabABMStats(7,'UniaxC');
+% formatStatPlot(7,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(8,model_C25, model_C5, model_C10);
+% plotMatlabABMHist(8,'UniaxC');
+% formatHistPlot(8,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous'});
+% 
+model_L5=averageModels(readModelData(L5_IDs{1}));%,readModelData(L5_IDs{2}),readModelData(L5_IDs{3}),readModelData(L5_IDs{4}));
+model_L10=averageModels(readModelData(L10_IDs{1}));%,readModelData(L10_IDs{2}),readModelData(L10_IDs{3}),readModelData(L10_IDs{4}));
 plotRepastABMStats(9,model_L25, model_L5, model_L10);
 plotMatlabABMStats(9,'UniaxL');
 formatStatPlot(9,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous','Experimental'});
 plotRepastABMHist(10,model_L25, model_L5, model_L10);
 plotMatlabABMHist(10,'UniaxL');
 formatHistPlot(10,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous'});
+% 
+% model_B5=averageModels(readModelData(B5_IDs{1}));%,readModelData(B5_IDs{2}),readModelData(B5_IDs{3}),readModelData(B5_IDs{4}));
+% model_B10=averageModels(readModelData(B10_IDs{1}));%,readModelData(B10_IDs{2}),readModelData(B10_IDs{3}),readModelData(B10_IDs{4}));
+% plotRepastABMStats(11,model_B25, model_B5, model_B10);
+% plotMatlabABMStats(11,'Biax');
+% formatStatPlot(11,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(12,model_B25, model_B5, model_B10);
+% plotMatlabABMHist(12,'Biax');
+% formatHistPlot(12,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous'});
 
-model_B5=averageModels(readModelData(B5_IDs{1}),readModelData(B5_IDs{2}),readModelData(B5_IDs{3}),readModelData(B5_IDs{4}));
-model_B10=averageModels(readModelData(B10_IDs{1}),readModelData(B10_IDs{2}),readModelData(B10_IDs{3}),readModelData(B10_IDs{4}));
-plotRepastABMStats(11,model_B25, model_B5, model_B10);
-plotMatlabABMStats(11,'Biax');
-formatStatPlot(11,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(12,model_B25, model_B5, model_B10);
-plotMatlabABMHist(12,'Biax');
-formatHistPlot(12,{'Repast 2.5 \mu m','Repast 5 \mu m','Repast 10 \mu m','MATLAB Continuous'});
-
-% Compare 1.25 um Repast ABM with continuous MATLAB ABM
-model_C125=averageModels(readModelData(C125_IDs{1}),readModelData(C125_IDs{2}));
-plotRepastABMStats(13,model_C125);
-plotMatlabABMStats(13,'UniaxC');
-formatStatPlot(13,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(14,model_C125);
-plotMatlabABMHist(14,'UniaxC');
-formatHistPlot(14,{'Repast 1.25 \mu m','MATLAB Continuous'});
-
-model_L125=averageModels(readModelData(L125_IDs{1}),readModelData(L125_IDs{2}));
-plotRepastABMStats(15,model_L125);
-plotMatlabABMStats(15,'UniaxL');
-formatStatPlot(15,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(16,model_L125);
-plotMatlabABMHist(16,'UniaxL');
-formatHistPlot(16,{'Repast 1.25 \mu m','MATLAB Continuous'});
-
-model_B125=averageModels(readModelData(B125_IDs{1}),readModelData(B125_IDs{2}));
-plotRepastABMStats(17,model_B125);
-plotMatlabABMStats(17,'Biax');
-formatStatPlot(17,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
-plotRepastABMHist(18,model_B125);
-plotMatlabABMHist(18,'Biax');
-formatHistPlot(18,{'Repast 1.25 \mu m','MATLAB Continuous'});
+% % Compare 1.25 um Repast ABM with continuous MATLAB ABM
+% model_C125=averageModels(readModelData(C125_IDs{1}),readModelData(C125_IDs{2}));
+% plotRepastABMStats(13,model_C125);
+% plotMatlabABMStats(13,'UniaxC');
+% formatStatPlot(13,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(14,model_C125);
+% plotMatlabABMHist(14,'UniaxC');
+% formatHistPlot(14,{'Repast 1.25 \mu m','MATLAB Continuous'});
+% 
+% model_L125=averageModels(readModelData(L125_IDs{1}),readModelData(L125_IDs{2}));
+% plotRepastABMStats(15,model_L125);
+% plotMatlabABMStats(15,'UniaxL');
+% formatStatPlot(15,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(16,model_L125);
+% plotMatlabABMHist(16,'UniaxL');
+% formatHistPlot(16,{'Repast 1.25 \mu m','MATLAB Continuous'});
+% 
+% model_B125=averageModels(readModelData(B125_IDs{1}),readModelData(B125_IDs{2}));
+% plotRepastABMStats(17,model_B125);
+% plotMatlabABMStats(17,'Biax');
+% formatStatPlot(17,{'Repast 1.25 \mu m','MATLAB Continuous','Experimental'});
+% plotRepastABMHist(18,model_B125);
+% plotMatlabABMHist(18,'Biax');
+% formatHistPlot(18,{'Repast 1.25 \mu m','MATLAB Continuous'});

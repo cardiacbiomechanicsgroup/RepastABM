@@ -2,10 +2,10 @@ function [] = plotBatchData( modelIDs, stats, batchParams )
 % This function plots the time course data for a specific output statistics
 % from the WoundABM model runs specified with the titles
 
-% cd \\bme-jwh-nas02.bme.virginia.edu\Home\WsSensitivity_FibrinOff_batch
+% cd \\bme-jwh-nas02.bme.virginia.edu\Home\ColRotationSweep_batch
 % addpath('C:\Users\abake\Desktop\WoundABM\woundABMSim\postProcessing');
 % modelIDs=getModelIDs;
-% stats={'ColMVL','ColMVA'};
+% stats={'ColMVL','ColMVA','ColFRC','CellMVL','CellMVA','CellFRC'};
 % batchParams={'Wp','Wm','Wc','Ws'};
 % plotBatchData(modelIDs,stats,batchParams);
 

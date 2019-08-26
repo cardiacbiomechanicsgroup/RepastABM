@@ -16,97 +16,82 @@ import repast.simphony.util.ContextUtils;
 import repast.simphony.valueLayer.GridValueLayer;
 
 public class CellAgentSim {
-	
+
 	// Pull parameters
-	static Parameters p = RunEnvironment.getInstance().getParameters();
-	
+	Parameters p = RunEnvironment.getInstance().getParameters();
+
 	// Geometry
-	static double sampleWidth = (Double) p.getValue("sampleWidth");				// um
-	static double sampleHeight = (Double) p.getValue("sampleHeight");			// um
-	static double gridUnitSize = (Double) p.getValue("gridUnitSize");			// um
-	static int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);			// grids
-	static int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);		// grids
-	private double cellRadius = 5.0;											// um
-	private double cellArea = Math.PI*Math.pow(cellRadius, 2);					// um^2
-	private int gridDiameter = (int) Math.round(cellRadius*2/gridUnitSize);		// Cell diameter in grids
-	private double woundRadius = 113.0;											// um
-	private int cellGridArea;													// Cell area in grids
-	
+	double sampleWidth = (Double) p.getValue("sampleWidth");	// um
+	double sampleHeight = (Double) p.getValue("sampleHeight");	// um
+	double gridUnitSize = (Double) p.getValue("gridUnitSize");	// um
+	int gridWidth = (int) Math.floor(sampleWidth/gridUnitSize);	// grids
+	int gridHeight = (int) Math.floor(sampleHeight/gridUnitSize);	// grids
+	private double cellRadius = 5.0;	// um
+	private double cellArea = Math.pow(cellRadius, 2)*Math.PI;	// um^2
+	private int gridDiameter = (int) Math.round(cellRadius*2/gridUnitSize);	// Cell diameter in grids
+	private double woundRadius = 113.0;	// um
+	private int cellGridArea;	// Cell area in grids
+
 	// Tracking
-	private double apoptosisTime;		// hr
-	private double apoptosisAge;		// hr
-	private double mitosisTime;			// hr
-	private double mitosisAge;			// hr
-	private double migrationTime;		// hr
-	private double moveCounter;			// hr
-	private double depositionTime;		// hr
+	private double apoptosisTime;	// hr
+	private double apoptosisAge;	// hr
+	private double mitosisTime;	// hr
+	private double mitosisAge;	// hr
+	private double migrationTime;	// hr
+	private double moveCounter;	// hr
+	private double depositionTime;	// hr
 	private double depositionCounter;	// hr
-	private double degradationTime;		// hr
+	private double degradationTime;	// hr
 	private double degradationCounter;	// hr
-	
+
 	// Weighting factors
-	private static double gWp = (Double) p.getValue("Wp");	// Persistance cue weight
-	private static double gWs = (Double) p.getValue("Ws"); 	// Structural cue weight
-	private static double gWm = (Double) p.getValue("Wm");	// Mechanics cue weight
-	private static double gWc = (Double) p.getValue("Wc");	// Chemokine cue weight
-	private static double Wtotal = gWp+gWs+gWm+gWc;
-	private static double Wp = gWp/Wtotal;					// Persistance cue weight (normalized)
-	private static double Ws = gWs/Wtotal; 					// Structural cue weight (normalized)
-	private static double Wm = gWm/Wtotal;					// Mechanics cue weight (normalized)
-	private static double Wc = gWc/Wtotal;					// Chemokine cue weight (normalized)
-	
+	private double Wp = (Double) p.getValue("Wp");	// Persistance cue weight
+	private double Ws = (Double) p.getValue("Ws"); // Structural cue weight
+	private double Wm = (Double) p.getValue("Wm");	// Mechanics cue weight
+	private double Wc = (Double) p.getValue("Wc");	// Chemokine cue weight
+
 	// Correction factors
-	private double alphaGeometric = woundRadius/2828.0;		// Cryo infarct radius = 2828 um;
-	private double alphaInfiltration = woundRadius/500.0; 	// Cryo infarct thickness = 500 um;
+	private double alphaGeometric = woundRadius/2828.0;	// Cryo infarct radius = 2828 um;
+	private double alphaInfiltration = woundRadius/500.0; // Cryo infarct thickness = 500 um;
 
 	// Migration
-	private double cellSpeedMin = alphaInfiltration*1.0;// (M) 1.0;	// um/hr		(doesn't need to be defined this way here)
-	private double cellSpeedMax = alphaInfiltration*10.0;// (M) 10.0; // um/hr
-	public double angleSelection;		// deg
-	// (M) private double adjkMigration = 1.0;	// 
+	private double cellSpeedMin = alphaInfiltration*1.0; // um/hr	(doesn't need to be defined this way here)
+	private double cellSpeedMax = alphaInfiltration*10.0;	// um/hr
+	public double angleSelection;	// deg
 	private boolean moveboolean;
-	
+
 	// Chemokine
 	private double concMin = 0.0;	//
 	private double concMax = 1.0;	//
-	private double chemolevel;		//
-	
-	// Boolean
-	private static boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
-	private static boolean colRotation = (Boolean) p.getValue("colRotation");
-	
-	// Collagen
-	private int fiberBinSIZE = 5;				// 5 degrees per collagen bin
-	private double kColRotMax = 3.0;			// deg/hr
-	private double kColRotMin = 0.3;			// deg/hr
-	// (M) private double adjkColRot = 0.5;			// 
-	// (M) private double adjkOffsetFrac = 1.0;		// 
-	private double kColGenMax = 17.9874;		// fiber/cell/hr
-	private double kColGenMin = 0.1799;			// fiber/cell/hr
-	private double kColGen;						// fiber/cell/hr
-	private double adjColGen; 		    		// adjust collagen generation to cell grid area
-	private double alignedDepFrac = 0.8;      	// 
-	private double kColDegMax = 0.0038;   		// unitless scaling factor
-	private double kColDegMin = 3.7676e-04;		// unitless scaling factor
-	private double kColDeg;						// %
-	private double kFibDeg;						// %
-	// (M) private double adjkColDeg = 1;				// 
-	// (M) private double adjkFibDeg = 1;				// 
-	
-	// Misc
-	private double timeStep =0.5;		// hr
-	// (M) private double rhoAdj = 1.0;		// Arbitrary guidance cue magnitude scaling factor
-	// (M) private double adjkSpatial = 1.0;	// (check for other adj values, should they really be here?)
 
-	private static String depoType = (String) p.getValue("depoType"); 	// "Aligned" or "Random"
-	
-	private static double gMitosisTime = (Double) p.getValue("mitosisTime");
-	private static double gApoptosisTime = (Double) p.getValue("apoptosisTime");
-	private static double gDepositionTime = (Double) p.getValue("depositionTime");
-	private static double gDegradationTime = (Double) p.getValue("degradationTime");
-	
-/* Constructors */
-	//(remove parameters section)
+	// Boolean
+	private boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
+	private boolean colRotation = (Boolean) p.getValue("colRotation");
+
+	// Collagen
+	private int fiberBinSIZE = 5;	// 5 degrees per collagen bin
+	private double kColRotMax = 3.0;	// deg/hr
+	private double kColRotMin = 0.3;	// deg/hr
+	private double adjkColRot = 0.5;	// 
+	private double kColGenMax = 17.9874;	// fiber/cell/hr
+	private double kColGenMin = 0.1799;	// fiber/cell/hr
+	private double kColGen;	// fiber/cell/hr
+	private double adjColGen;    	// adjust collagen generation to cell grid area
+	private double alignedDepFrac = 0.8;      	// 
+	private double kColDegMax = 0.0038;   // unitless scaling factor
+	private double kColDegMin = 3.7676e-04;	// unitless scaling factor
+	private double kColDeg;	// %
+	private double kFibDeg;	// %
+	private String depoType = (String) p.getValue("depoType"); // "Aligned" or "Random"
+
+	// Cell cycle timing
+	private double timeStep =0.5;	// hr
+	private double gMitosisTime = (Double) p.getValue("mitosisTime");
+	private double gApoptosisTime = (Double) p.getValue("apoptosisTime");
+	private double gDepositionTime = (Double) p.getValue("depositionTime");
+	private double gDegradationTime = (Double) p.getValue("degradationTime");
+
+	/* Constructors */
 	public CellAgentSim() {
 		// Assign parameters
 		this.mitosisTime = gMitosisTime;
@@ -118,14 +103,16 @@ public class CellAgentSim {
 		this.degradationTime = gDegradationTime;
 		this.degradationCounter = RandomHelper.nextDoubleFromTo(0, gDegradationTime);
 		this.angleSelection = RandomHelper.nextDoubleFromTo(-180, 180);
-		this.chemolevel =  RandomHelper.nextDoubleFromTo(0, 1);
 		this.moveboolean = true;
+
+		List<GridPoint> coveredSites = cellCoverage(0, 0);
+		cellGridArea = coveredSites.size();
+		adjColGen = Math.pow(gridUnitSize, 2)/cellArea;	// Math.pow(gridUnitSize, 2)/cellArea //1.0/cellGridArea
 	}
-	
+
 	public CellAgentSim(double apoptosisTime, double mitosisTime, double depositionTime,
 			double depositionCounter, double degradationTime, double degradationCounter, 
-			double apoptosisAge, double mitosisAge, double angleSelection, boolean moveboolean, 
-			double chemolevel) {
+			double apoptosisAge, double mitosisAge, double angleSelection, boolean moveboolean) {
 
 		// Assign parameters
 		this.apoptosisTime = apoptosisTime;
@@ -137,21 +124,24 @@ public class CellAgentSim {
 		this.degradationTime = degradationTime;
 		this.degradationCounter = degradationCounter;
 		this.angleSelection = angleSelection;
-		this.chemolevel = chemolevel;
 		this.moveboolean = moveboolean;
+
+		List<GridPoint> coveredSites = cellCoverage(0, 0);
+		cellGridArea = coveredSites.size();
+		adjColGen = Math.pow(gridUnitSize, 2)/cellArea;	// Math.pow(gridUnitSize, 2)/cellArea //1.0/cellGridArea
 	}
 
-/* Primary scheduled methods in order of execution */
+	/* Primary scheduled methods in order of execution */
 	// Infarction method
 	@ScheduledMethod(start = 0, priority = 3)
 	public void cellRemoval() {
-		
+
 		// Remove cells in the wound area
 		if (cellRemoval == true) {
 			woundABMContextSim woundabmspace = (woundABMContextSim) ContextUtils.getContext(this);
 			Grid<?> grid = (Grid<?>) woundabmspace.getProjection("Cell Grid");
 			GridPoint pt = grid.getLocation(this);	
-				
+
 			double removalDist = (woundRadius/gridUnitSize);
 			double dist = Math.sqrt(Math.pow((pt.getX()-gridWidth/2), 2)+Math.pow((pt.getY()-gridHeight/2), 2));
 			if (dist <= (double) removalDist) {
@@ -159,7 +149,7 @@ public class CellAgentSim {
 			}
 		}
 	}
-	
+
 	// Initialize chemokine-dependent apoptosis, mitosis, and migration time (add to step method) 
 	@ScheduledMethod(start = 0.2, interval = 0.5, priority = 2)
 	public void setChemokineProcess() {
@@ -167,76 +157,100 @@ public class CellAgentSim {
 		Grid<?> grid = (Grid<?>) woundabmspace.getProjection("Cell Grid");
 		GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
 		GridPoint pt = grid.getLocation(this);
-		
+
 		double effectiveChemokine = (chemokine.get(pt.getX(), pt.getY())-concMin)/(concMax-concMin);
-		
+
 		// Define chemokine dependent mitosis to ensure cells are always coming from the outside of wound
 		double mitosisMin = gMitosisTime;
 		double mitosisMax = gApoptosisTime;
 		this.mitosisTime = effectiveChemokine*(mitosisMin-mitosisMax)+mitosisMax;
-		
+
 		// Define chemokine dependent migration to speed up wound closure
-		// (M) cellSpeedMin = adjkMigration*alphaInfiltration*1.0;
-		// (M) cellSpeedMax = adjkMigration*alphaInfiltration*10.0;
 		double cellSpeed = effectiveChemokine*(cellSpeedMax-cellSpeedMin)+cellSpeedMin;
 		this.migrationTime = gridUnitSize/cellSpeed;
 	}
 
-	// Agent decision tree (move adjColGen to earlier method)
+	// Agent decision tree
 	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 1)
 	public void step() {
 		woundABMContextSim woundABMSpace = (woundABMContextSim) ContextUtils.getContext(this);
 		Grid<?> grid = (Grid<?>) woundABMSpace.getProjection("Cell Grid");
 		GridPoint pt = grid.getLocation(this);
-		
+
 		// Get location
 		int x = pt.getX();
 		int y = pt.getY();
-		
+
 		// Check for mitosis
 		if (mitosisAge >= mitosisTime) {	
-			mitosisAge = randomClock();		// Quiescent cell sets mitosis age to random number
+			mitosisAge = randomClock();	// Quiescent cell sets mitosis age to random number
 			mitose(woundABMSpace, grid, x, y);
-			
+
 		} else {
-			
+
 			// Update cell orientation
 			this.angleSelection = guidanceCue(woundABMSpace, x, y);
-			
+
 			// Check for migration
-			if (moveCounter >= migrationTime) {		
+			if (moveCounter >= migrationTime) {	
 				moveTowards(grid, x, y);
 				moveCounter = 0.0;
 			}
-			
+
 			// Get grids covered by the cell
 			List<GridPoint> coveredSites = cellCoverage(x, y);
-			cellGridArea = coveredSites.size();
-			adjColGen = cellGridArea*Math.pow(gridUnitSize, 2)/cellArea;	//10*10/(pi*5*5)=1.2732
 
-			
 			// Deposit, degrade, and rotate collagen in the grids beneath the cell
 			for (GridPoint site : coveredSites) {
-				matrixRemodeling(woundABMSpace, site.getX(), site.getY());
+
+				// Get site x and y coordinates
+				int siteX = site.getX();
+				int siteY = site.getY();
+
+				// Retrieve value layers
+				GridValueLayer chemokine = (GridValueLayer) woundABMSpace.getValueLayer("Chemokine");
+				ArrayList<GridValueLayer> collagenLayers = (ArrayList<GridValueLayer>)woundABMSpace.GridValueLayerList();
+
+				// Check for rotation
+				if (colRotation == true) {
+					collagenRotation(siteX, siteY, chemokine, collagenLayers);
+				}
+
+				// Check for degradation
+				if (degradationCounter >= degradationTime) {
+					ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>)woundABMSpace.fibrinGridValueLayerList();	
+					matrixDegradation(siteX, siteY, chemokine, collagenLayers, fibrinLayers, degradationTime);
+					degradationCounter = timeStep;
+				} else {
+					degradationCounter += timeStep;
+				}
+
+				// Check for deposition
+				if (depositionCounter >= depositionTime) {	
+					collagenDeposition(siteX, siteY, chemokine, collagenLayers, depositionTime);
+					depositionCounter = timeStep;
+				} else {
+					depositionCounter += timeStep;
+				}
 			}
 		}
-		
+
 		// Check for apoptosis
 		if (apoptosisAge >= apoptosisTime) {
 			woundABMSpace.remove(this);
 		}
-		
+
 		// Increment the counters
 		apoptosisAge = apoptosisAge+timeStep;
 		mitosisAge = mitosisAge+timeStep;
 		moveCounter = moveCounter+timeStep;	
 	}
 
-/* Secondary methods */
+	/* Secondary methods */
 	// Mitosis method (fix get(site)) (move constants to class loading or static method)
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void mitose(woundABMContextSim woundabmspace, Grid grid, int x, int y) {
-		
+
 		// Create list of vacant neighboring sites
 		List<GridPoint> emptySites = getEmptySites(grid, x, y, gridDiameter);
 		if (emptySites.size() > 0) {
@@ -246,38 +260,36 @@ public class CellAgentSim {
 			int xCoor = site.getX();
 			int yCoor = site.getY();
 
-			// Add daughter (angle from mother's location to new site, random ages, mother's chemolevel)
+			// Add daughter (angle from mother's location to new site, random ages)
 			double dAngle = Math.toDegrees(Math.atan2(yCoor-y, xCoor-x));
-			double dChemo = this.chemolevel;
 			double dMitosisClock = randomClock();
 			CellAgentSim cellagent = new CellAgentSim(apoptosisTime, mitosisTime, depositionTime,
-					0.0, degradationTime, 0.0, dMitosisClock, dMitosisClock, dAngle, true, dChemo);
+					0.0, degradationTime, 0.0, dMitosisClock, dMitosisClock, dAngle, true);
 			woundabmspace.add(cellagent);
 			grid.moveTo(cellagent, xCoor, yCoor);
 		}
 	}
-	
-	// Returns an angle based on guidance cues (set colMVL and MVA?) (correct rho?)
+
+	// Returns an angle based on guidance cues (set colMVL and MVA?) (correct rho?) (move cellSpeed Allocation)
 	private double guidanceCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Maximum chemokine gradient based on diffusion, generation, and degradation parameters
-		double kcdeg = 0.001;         		// 1/s
-		double Dc = 100;              		// um2/s
-		double L = 2828;              		// um
+		double kcdeg = 0.001;         // 1/s
+		double Dc = 100;              	// um2/s
+		double L = 2828;              	// um
 		double lam = Math.sqrt(kcdeg/Dc);  	// 1/um
-		double DimlessMaxConcGradMag = (lam*L*Math.sinh(lam*L))/(Math.cosh(lam*L)+Math.sinh(lam*L));
-		double MaxConcGradMag = DimlessMaxConcGradMag/(alphaGeometric*L);    // 1/um
-		
+		double maxConcGrad = (lam*L*Math.sinh(lam*L))/(Math.cosh(lam*L)+Math.sinh(lam*L))/(alphaGeometric*L);    // 1/um
+
 		// Maximum strain anisotropy based on cryoinfarct data
 		double eii = 0.05;
 		double ejj = 0;
 		double eij = 0;
-		
+
 		// Maximum cell speed
-		cellSpeedMax = alphaInfiltration*10; 	// um/tick
-		
+		cellSpeedMax = alphaInfiltration*10; // um/tick
+
 		// Calculate guidance cue normalization factors based on maximum values
-		double Mc = 0.5*cellRadius*MaxConcGradMag;
+		double Mc = 0.5*cellRadius*maxConcGrad;
 		double Mm = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Ms = 0.0125	 
 		double Ms = 1;
 		double Mp = cellSpeedMax;
@@ -299,7 +311,7 @@ public class CellAgentSim {
 		double PM = persistence[0];
 		double PX = persistence[1]; 
 		double PY = persistence[2];
-		
+
 		// Write GridValueLayer of colMVA and colMVL
 		GridValueLayer colMVA = (GridValueLayer) woundabmspace.getValueLayer("Collagen MVA");
 		GridValueLayer colMVL = (GridValueLayer) woundabmspace.getValueLayer("Collagen MVL");
@@ -352,23 +364,22 @@ public class CellAgentSim {
 				RMlist.add(i);
 			}
 		}
-		
-		// If  RM are equal pick randomly out of two
+
+		// If RM are equal pick randomly out of two
 		if (RMlist.size() < 1) {
 			RMlist.add(maxTempRMidx);
 		}
 		int maxRMindex = RMlist.get(RandomHelper.nextIntFromTo(0,(RMlist.size()-1)));
-		
+
 		// Persistence tuning factor
 		double pMin = 0.25;     // min persistence time (hr)
 		double pNoCue = 1.2;    // persistence time in the absence of external directional cues
-		double rhoTuning = 2*Wc*pMin/(pNoCue-pMin); // rhoTuning = 0.1754 or = 0.35;
-		
+		double rhoTuning = 2*Wp*pMin/(pNoCue-pMin); // rhoTuning = 0.1754 or = 0.35;
+
 		// Calculate the resultant angle "theta" and normalized resultant magnitude "rho"
 		double theta = Math.atan2(RY[maxRMindex], RX[maxRMindex]);
-		// (M) double rho = rhoAdj*RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
 		double rho = RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
-		
+
 		// Correct rho outside of allowed range
 		if (rho > 0.9999) {
 			rho = 0.9999;
@@ -376,7 +387,7 @@ public class CellAgentSim {
 		if (rho < 0.0001) {
 			rho = 0.0001;
 		}
-		
+
 		// Select a direction from the probability distribution, exceptions for rho >=0.999 and rho <=0.001
 		int binSize = 5;
 		int binNum = 360/binSize;
@@ -398,14 +409,14 @@ public class CellAgentSim {
 				guidedAngle = binDir360[RandomHelper.nextIntFromTo(0,binDir360.length-1)];
 			}
 		}
-		
+
 		return guidedAngle;
 	}
 
-	// Migration method (redo approximate cell angle)
+	// Migration method
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void moveTowards(Grid grid, int x, int y) {
-		
+
 		// Search for a migration site starting from farthest to nearest
 		int extent = gridDiameter;
 		while (extent > 0) {
@@ -419,9 +430,10 @@ public class CellAgentSim {
 			if (!emptySites.isEmpty()) {
 
 				// Select a random migration site from the list of those available to move to
-				int migrationSiteidx = RandomHelper.nextIntFromTo(0,(emptySites.size()-1));
-				int desiredX = emptySites.get(migrationSiteidx).getX();
-				int desiredY = emptySites.get(migrationSiteidx).getY();
+				int migrationSiteIdx = RandomHelper.nextIntFromTo(0,(emptySites.size()-1));
+				GridPoint migrationSite = emptySites.get(migrationSiteIdx);
+				int desiredX = migrationSite.getX();
+				int desiredY = migrationSite.getY();
 
 				// Move to new location
 				grid.moveTo(this, desiredX, desiredY);
@@ -432,7 +444,7 @@ public class CellAgentSim {
 			} else if (extent == 1) {
 				this.moveboolean = false;
 			}
-			
+
 			// Reduce search distance
 			extent = extent-1;
 		}
@@ -448,11 +460,11 @@ public class CellAgentSim {
 			for (int j = -extent; j <= extent; j++) {
 				int xCoor = x+i;
 				int yCoor = y+j;
-				
+
 				// Check radial distance
 				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
 				if (dist <= cellRadius+1) {
-					
+
 					// Wrapped space
 					if (xCoor < 0) {
 						xCoor = xCoor+gridWidth;
@@ -464,44 +476,186 @@ public class CellAgentSim {
 					} else if (yCoor >= gridHeight) {
 						yCoor = yCoor-gridHeight;
 					}
-					
+
 					coveredSites.add(new GridPoint(xCoor,yCoor));
 				}
 			}
 		}
-		
+
 		return coveredSites;
 	}
-	
-	// Collagen remodeling (may contain unnecessary computation) (add collagen rotation method)
-	public void matrixRemodeling(woundABMContextSim woundabmspace, int x, int y) {
-		GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
-		ArrayList<GridValueLayer> gridvaluelayerlist = (ArrayList<GridValueLayer>)woundabmspace.GridValueLayerList();
-		ArrayList<GridValueLayer> fibringridValueLayerList = (ArrayList<GridValueLayer>)woundabmspace.fibrinGridValueLayerList();
-		
-		// Check for rotation
-		if (colRotation == true) {
-			collagenRotation(x, y, chemokine, gridvaluelayerlist);
+
+	// Rotate collagen (shortened bin assignment)
+	public void collagenRotation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList) {
+
+		// Calculate collagen fiber rotation constant based on chemokine concentration
+		double kColRot = ((chemokine.get(x,y)-concMin)/(concMax-concMin)*(kColRotMax-kColRotMin))+kColRotMin;
+		double Q = Math.ceil(kColRot*timeStep/2);
+
+		// Get all 36 bins of collagen
+		int binNum= gridValueLayerList.size();
+		double [] colContent = new double[binNum];
+		ArrayList <Double> tempColContent = new ArrayList<Double>();
+		for (int j = 0; j < binNum; j++) {
+			colContent[j] = gridValueLayerList.get(j).get(x, y);
+			tempColContent.add((double) 0.0);
 		}
 
-		// Check for degradation
-		if (degradationCounter >= degradationTime) {	
-			matrixDegradation(x, y, chemokine, gridvaluelayerlist, fibringridValueLayerList, degradationTime);
-			degradationCounter = timeStep;
-		} else {
-			degradationCounter = Math.round((degradationCounter+timeStep)*100);
-			degradationCounter = degradationCounter/100;
+		// Converts angleSelection range of [-180 180] to range of [-90 90]
+		double radAngle = Math.toRadians(this.angleSelection);
+		double cellAngle = Math.toDegrees(Math.atan(Math.sin(radAngle)/Math.cos(radAngle)));
+		double fiberBin;
+		for (int j = 0; j < binNum; j++) {	
+
+			// Get fiber offset from cell angle in radians
+			fiberBin = fiberBinSIZE*j-87.5;
+			double newAngle = 360;
+			double fiberOffset = Math.toRadians(cellAngle-fiberBin);
+			double tanFiberOff = Math.tan(fiberOffset);
+			double sinFiberOff = Math.abs(Math.sin(fiberOffset));
+			if ((tanFiberOff > 0) && (sinFiberOff != 1)) {// fiberOffset < 90
+				// (M) newAngle = fiberBin+(kColRot*adjkColRot*timeStep*(sinFiberOff));
+				newAngle = fiberBin+(kColRot*timeStep/Q*(sinFiberOff));
+			} else if ((tanFiberOff <= 0) && (sinFiberOff != 1)) {// fiberOffset > 90
+				// (M) newAngle = fiberBin-(kColRot*adjkColRot*timeStep*(sinFiberOff));
+				newAngle = fiberBin-(kColRot*timeStep/Q*(sinFiberOff));
+			} else if (Math.abs(Math.sin(fiberOffset)) == 1) {// fiberOffset ~= 90
+				double flip = 1;
+				int dice = RandomHelper.nextIntFromTo(0,1);
+				if (dice == 1) {
+					flip = -1;
+				}
+				// (M) newAngle = fiberBin+(flip*kColRot*adjkColRot*timeStep*(sinFiberOff));
+				newAngle = fiberBin+(flip*kColRot*timeStep/Q*(sinFiberOff));
+			}
+
+			// Detect and correct angles outside of fiber bin range
+			if (newAngle <= -90) {
+				newAngle = newAngle+180;
+			} else if (newAngle > 90) {
+				newAngle = newAngle-180;
+			}
+
+			// Map newAngle to the nearest bin (can be partially substituted by code in Deposition method)
+			double min = 360;
+			int minIndex = 99;
+			double rotBins = 360;
+			for (int i = 0; i < binNum; i++) {
+				double fiberDirBins = fiberBinSIZE*i-87.5;
+				double angleDiff = Math.abs(fiberDirBins-newAngle);
+				if (angleDiff < min) {
+					min = Math.abs(fiberDirBins-newAngle);
+					minIndex = i;
+					rotBins = fiberDirBins;
+				} else if (angleDiff == min) {
+					int dice = RandomHelper.nextIntFromTo(0,1);
+					if (dice == 1) {
+						min = Math.abs(fiberDirBins-newAngle);
+						minIndex = i;
+						rotBins = fiberDirBins;
+					}
+				}
+			}
+
+			// Rotate collagen
+			int count2indx = 99;
+			double rotFrac = (newAngle-rotBins)/5;
+			double temp1;
+			double temp2;
+			if (rotFrac >= 0) { //kept
+				temp1 = tempColContent.get(minIndex)+colContent[j]*(1-rotFrac);
+				if (minIndex == 35) {// rotated
+					count2indx = 0;
+				} else {
+					count2indx = minIndex+1;
+				}
+				temp2 = tempColContent.get(count2indx)+colContent[j]*rotFrac;	
+			} else { // kept
+				temp1 = tempColContent.get(minIndex)+colContent[j]*(1+rotFrac);
+				if (minIndex == 0) {
+					count2indx = 35;
+				} else {
+					count2indx = minIndex-1;
+				}
+				temp2 = tempColContent.get(count2indx)-colContent[j]*rotFrac;
+			}
+
+			tempColContent.set(minIndex, temp1);
+			tempColContent.set(count2indx, temp2);	
 		}
-		
-		// Check for deposition
-		if (depositionCounter >= depositionTime) {		
-			collagenDeposition(x, y, chemokine, gridvaluelayerlist, depositionTime);
-			depositionCounter = timeStep;
-		} else {
-			depositionCounter = Math.round((depositionCounter+timeStep)*100);
-			depositionCounter = depositionCounter/100;
+
+		// Update all 36 collagen bins
+		for (int i = 0; i < binNum; i++) {
+			gridValueLayerList.get(i).set(tempColContent.get(i), x, y);
 		}
-	}	
+	}
+
+	// Fiber degradation method
+	public void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> fibringridValueLayerList, double degrationInterval) {
+
+		// Calculate fiber degradation constants with respect to chemokine concentration
+		kColDeg = ((chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColDegMax-kColDegMin)+kColDegMin);
+		kFibDeg = kColDeg;
+
+		// Degrade fibers uniformly across all bins
+		int binNum = gridValueLayerList.size();
+		for (int i = 0; i < binNum; i++) {
+
+			// Collagen degradation 
+			double colContent = gridValueLayerList.get(i).get(x, y);
+			double newColContent = colContent*(1-kColDeg*degrationInterval);
+			gridValueLayerList.get(i).set(newColContent, x, y);
+
+			// Fibrin degradation (only within wound)
+			double distToCenter = Math.sqrt(Math.pow((x-gridWidth/2), 2)+Math.pow((y-gridHeight/2), 2));
+			double woundSize = (double) woundRadius/gridUnitSize;
+			if (distToCenter < woundSize) {
+				double fibrinContent = fibringridValueLayerList.get(i).get(x, y);
+				double newFibrinContent = fibrinContent*(1-kFibDeg*degrationInterval);
+				fibringridValueLayerList.get(i).set(newFibrinContent, x, y);
+			}
+		}
+	}
+
+	// Aligned collagen deposition method (MATLAB deltaCol is divided by number of local collagen fibers) (alignedDepFrac is not in MATLAB model)
+	public void collagenDeposition(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, double depositionInterval) {
+
+		// Calculate collagen fiber generation rate based on chemokine concentration
+		kColGen = ((chemokine.get(x, y))-concMin)/(concMax-concMin)*(kColGenMax-kColGenMin)+kColGenMin;
+		//this.chemolevel = chemokine.get(x, y);
+
+		// Set collagen deposition angle based on deposition type
+		double depoAngle;
+		double cellAngle = this.angleSelection;
+		if (depoType.equals("Aligned")) {
+			depoAngle = cellAngle;
+		} else {
+			depoAngle = RandomHelper.nextDoubleFromTo(-180, 180);
+		}
+
+		// Correct angles outside of the collagen bin range
+		if (cellAngle <= -90.0) {
+			depoAngle = cellAngle+180.0;
+		} else if (cellAngle > 90.0) {
+			depoAngle = cellAngle-180.0;
+		}
+		depoAngle = Math.toDegrees(Math.atan(Math.sin(Math.toRadians(depoAngle))/
+				Math.cos(Math.toRadians(depoAngle))));
+
+		// Assign to the closest bin
+		int bin = (int) Math.ceil(depoAngle/fiberBinSIZE)+17;
+
+		// Deposit the aligned collagen
+		double deltaCol = depositionInterval*kColGen*adjColGen;
+		double newColContent = gridValueLayerList.get(bin).get(x, y)+(deltaCol*alignedDepFrac);
+		gridValueLayerList.get(bin).set(newColContent, x, y);
+
+		// Deposit a portion of the collagen randomly
+		int randBin = RandomHelper.nextIntFromTo(0,35);
+		double newColContent2 = gridValueLayerList.get(randBin).get(x, y)+deltaCol*(1-alignedDepFrac);
+		gridValueLayerList.get(randBin).set(newColContent2, x, y);
+
+	}
 
 	// Returns a random clock time
 	public double randomClock() {
@@ -509,8 +663,8 @@ public class CellAgentSim {
 		double time = Math.round(0.1*mitosisTime*r.nextGaussian()/timeStep)*timeStep;
 		return time;
 	}
-	
-/* Tertiary methods */
+
+	/* Tertiary methods */
 	// Returns a vector of chemokine cues
 	private double[] getChemoCue(woundABMContextSim woundabmspace, int x, int y) {
 
@@ -518,44 +672,44 @@ public class CellAgentSim {
 		GridValueLayer CM = (GridValueLayer) woundabmspace.getValueLayer("CM");
 		GridValueLayer CX = (GridValueLayer) woundabmspace.getValueLayer("CX");
 		GridValueLayer CY = (GridValueLayer) woundabmspace.getValueLayer("CY");
-		
+
 		// Get strain cue at cell location
 		double CMabm = CM.get(x, y);
 		double CXabm = CX.get(x, y); 
 		double CYabm = CY.get(x, y);
-		
+
 		return new double[] {CMabm, CXabm, CYabm};
 	}
 
 	// Returns a vector of strain cues
 	private double[] getStrainCue(woundABMContextSim woundabmspace, int x, int y) {
-		
+
 		// Load strain cue value layers
 		GridValueLayer MM = (GridValueLayer) woundabmspace.getValueLayer("MM");
 		GridValueLayer MX = (GridValueLayer) woundabmspace.getValueLayer("MX");
 		GridValueLayer MY = (GridValueLayer) woundabmspace.getValueLayer("MY");
-		
+
 		// Get strain cue at cell location
 		double MMabm = MM.get(x, y);
 		double MXabm = MX.get(x, y);
 		double MYabm = MY.get(x, y);
-		
+
 		return new double[] {MMabm, MXabm, MYabm};
 	}
 
-	// Returns a vector of structural cues from collagen and fibrin content (recast fiberDist[i] to avoid array)
+	// Returns a vector of structural cues from collagen and fibrin content
 	private double[] getColFiberCue(woundABMContextSim woundabmspace, int x, int y) {
-		
+
 		// Get grids covered by the cell
 		List<GridPoint> coveredSites = cellCoverage(x, y);
-		
+
 		// Get grid value layers
-		ArrayList<GridValueLayer> gridValueLayerList = (ArrayList<GridValueLayer>)woundabmspace.GridValueLayerList();
-		ArrayList<GridValueLayer> fibringridValueLayerList = (ArrayList<GridValueLayer>)woundabmspace.fibrinGridValueLayerList();
-		int binNum = gridValueLayerList.size();
-		
+		ArrayList<GridValueLayer> collagenLayers= (ArrayList<GridValueLayer>)woundabmspace.GridValueLayerList();
+		ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>)woundabmspace.fibrinGridValueLayerList();
+		int binNum = collagenLayers.size();
+
 		// Calculate structural cue magnitude, x, and y components
-		double[] fiberDist = new double [binNum];
+		double fiberDist = 0;
 		double fiberSumX = 0;
 		double fiberSumY = 0;
 		double fiberSum = 0;
@@ -564,29 +718,28 @@ public class CellAgentSim {
 			int xCoor = site.getX();
 			int yCoor = site.getY();
 			for (int i = 0; i < binNum; i++) {	// Iterate through fiber bins
-				fiberAngle = fiberBinSIZE*i-87.5;
-				fiberDist[i] = gridValueLayerList.get(i).get(xCoor, yCoor)+
-						fibringridValueLayerList.get(i).get(xCoor, yCoor);
-				fiberSumX = fiberSumX+fiberDist[i]*Math.cos(Math.toRadians(2*fiberAngle));
-				fiberSumY = fiberSumY+fiberDist[i]*Math.sin(Math.toRadians(2*fiberAngle));
-				fiberSum = fiberSum+fiberDist[i];
+				fiberAngle = Math.toRadians(2*(fiberBinSIZE*i-87.5));
+				fiberDist = collagenLayers.get(i).get(xCoor, yCoor)+fibrinLayers.get(i).get(xCoor, yCoor);
+				fiberSumX = fiberSumX+fiberDist*Math.cos(fiberAngle);
+				fiberSumY = fiberSumY+fiberDist*Math.sin(fiberAngle);
+				fiberSum = fiberSum+fiberDist;
 			}
 		}
 		double meanFiberSumX = fiberSumX/fiberSum;
 		double meanFiberSumY = fiberSumY/fiberSum;
 		double meanFiberAngle = 0.5*Math.atan2(meanFiberSumY, meanFiberSumX);
-		
+
 		// Set structural cue magnitude, x, and y components
 		double SM = Math.sqrt(Math.pow(meanFiberSumX, 2)+Math.pow(meanFiberSumY, 2));
 		double SX = Math.cos(meanFiberAngle);
 		double SY = Math.sin(meanFiberAngle);
-		
+
 		return new double[] {SM, SX, SY, meanFiberAngle};
 	}
 
 	// Returns the direction and magnitude of cell persistence
 	private double[] getPersistence(woundABMContextSim woundabmspace, int x, int y) {
-		
+
 		// Set adjacent cell speed based on whether the cell is going to migrate
 		double adjCellSpeed;
 		if (!moveboolean) {
@@ -594,24 +747,22 @@ public class CellAgentSim {
 		} else {
 			adjCellSpeed = 1.0;
 		}
-		
+
 		// Calculate cell direction magnitude um/hr
-		// (M) cellSpeedMin = alphaInfiltration*1;
-		// (M) cellSpeedMax = alphaInfiltration*10;
 		GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
 		double PM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
 				(cellSpeedMax-cellSpeedMin))+cellSpeedMin;
 		double PX = Math.cos(Math.toRadians(this.angleSelection));
 		double PY = Math.sin(Math.toRadians(this.angleSelection));
-		
+
 		return new double[] {PM, PX, PY};
 	}
 
-	// Returns a set of angles (slow, change later) (send typeModal to GUI?)
+	// Returns a set of angles (slow?)
 	private Double[] getAngleSet(double theta, double rho) {
-		
+
 		// Get probability distribution
-		String typeModal = "Single"; 	// 'Single' or 'Bimodal'
+		String typeModal = "Single"; // 'Single' or 'Bimodal'
 		double sumBinProb = 0.0;
 		double maxBinProb = 0.0;
 		double theta2 = theta+Math.PI;
@@ -629,7 +780,7 @@ public class CellAgentSim {
 			if (bimodalBinProb[i] >= maxBinProb)
 				maxBinProb = bimodalBinProb[i];
 		}
-		
+
 		// Sum probability
 		int binSize = 5;
 		int binNum = 360/binSize;
@@ -654,25 +805,25 @@ public class CellAgentSim {
 				}
 			}
 		}
-		
+
 		Collections.shuffle(Arrays.asList(angleset));
 		return angleset;
 	}
-	
+
 	// Returns a wrapped normal distribution
 	private double[] WND(double theta, double rho) {
-		
+
 		// Calculate WND bin (-180 to 180)
 		double sigma = -2*Math.log(rho);
 		double dir;
 		double wnd;
 		double[] wndArray = new double[361];
 		for (int i = 0; i < 361; i++) {
-			dir = i-180;
-			wnd = Math.exp(-Math.pow((Math.toRadians(dir)-theta),2)/(2*sigma));
+			dir = Math.toRadians(i-180);
+			wnd = Math.exp(-Math.pow((dir-theta),2)/(2*sigma));
 			for (int p = 1; p <= 10; p++) {
-				wnd = wnd+Math.exp(-Math.pow((Math.toRadians(dir)-theta+2*Math.PI*p),2)/(2*sigma))+
-						Math.exp(-Math.pow((Math.toRadians(dir)-theta-2*Math.PI*p),2)/(2*sigma));
+				wnd = wnd+Math.exp(-Math.pow((dir-theta+2*Math.PI*p),2)/(2*sigma))+
+						Math.exp(-Math.pow((dir-theta-2*Math.PI*p),2)/(2*sigma));
 			}
 			wnd = (double) wnd/Math.sqrt(2*Math.PI*sigma);
 			wndArray[i] = wnd;
@@ -682,8 +833,7 @@ public class CellAgentSim {
 		double[] cumProb = new double[361];
 		cumProb[0] = Math.toRadians(-180)*wndArray[0];
 		for (int i = 0; i < 360; i++) {
-			cumProb[i+1] = cumProb[i]+0.5*Math.toRadians(1)*(wndArray[i+1]+
-					wndArray[i]);
+			cumProb[i+1] = cumProb[i]+0.5*Math.toRadians(1)*(wndArray[i+1]+wndArray[i]);
 		}
 
 		// Calculate probability function of WND
@@ -692,230 +842,29 @@ public class CellAgentSim {
 		for (int i = 0; i < binNum; i++) {
 			binProb[i] = cumProb[5*(i+1)]-cumProb[5*i];
 		}
-		
+
 		return binProb;
 	}
 
-	// Rotate collagen (shortened bin assignment) (make kColRot global?) (remove multiple calculations)
-	public void collagenRotation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList) {
-		
-		// Calculate collagen fiber rotation constant based on chemokine concentration
-		double kColRot = ((chemokine.get(x,y)-concMin)/(concMax-concMin)*(kColRotMax-kColRotMin))+kColRotMin;
-		double Q = Math.ceil(kColRot*timeStep/2);
-		
-		// Get all 36 bins of collagen
-		int binNum= gridValueLayerList.size();
-		double [] colContent = new double[binNum];
-		ArrayList <Double> tempColContent = new ArrayList<Double>();
-		for (int j = 0; j < binNum; j++) {
-			colContent[j] = gridValueLayerList.get(j).get(x, y);
-			tempColContent.add((double) 0.0);
-		}
-
-		// Converts angleSelection range of [-180 180] to range of [-90 90]
-		double radAngle = Math.toRadians(this.angleSelection);
-		double cellAngle = Math.toDegrees(Math.atan(Math.sin(radAngle)/Math.cos(radAngle)));
-		double fiberBin;
-		// (M) double rotationInterval = 0.5;
-		for (int j = 0; j < binNum; j++) {	
-
-			// Get fiber offset from cell angle in radians
-			fiberBin = fiberBinSIZE*j-87.5;
-			double newAngle = 360;
-			double fiberOffset = Math.toRadians(cellAngle-fiberBin);
-			if ((Math.tan(fiberOffset) > 0) && (Math.abs(Math.sin(fiberOffset)) != 1)) {// fiberOffset < 90
-				// (M) newAngle = fiberBin+(kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
-				newAngle = fiberBin+(kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
-			} else if ((Math.tan(fiberOffset) <= 0) && (Math.abs(Math.sin(fiberOffset)) != 1)) {// fiberOffset > 90
-				// (M) newAngle = fiberBin-(kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
-				newAngle = fiberBin-(kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
-			} else if (Math.abs(Math.sin(fiberOffset)) == 1) {// fiberOffset ~= 90
-				double flip = 1;
-				int dice = RandomHelper.nextIntFromTo(0,1);
-				if (dice == 1) {
-					flip = -1;
-				}
-				// (M) newAngle = fiberBin+(flip*kColRot*adjkColRot*rotationInterval*adjkSpatial*(Math.abs(Math.sin(fiberOffset))));
-				newAngle = fiberBin+(flip*kColRot*timeStep/Q*(Math.abs(Math.sin(fiberOffset))));
-			}
-
-			// Detect and correct angles outside of fiber bin range
-			if (newAngle <= -90) {
-				newAngle = newAngle+180;
-			} else if (newAngle > 90) {
-				newAngle = newAngle-180;
-			}
-			
-			// Map newAngle to the nearest bin (can be substituted by code in Deposition method) (move rotation bin assignment up)
-			double min = 360;
-			int minIndex = 99;
-			double rotBins = 360;
-			for (int i = 0; i < binNum; i++) {
-				double fiberDirBins = fiberBinSIZE*i-87.5;
-				if (Math.abs(fiberDirBins-newAngle) < min) {
-					min = Math.abs(fiberDirBins-newAngle);
-					minIndex = i;
-					rotBins = fiberDirBins;
-				} else if (Math.abs(fiberDirBins-newAngle) == min) {
-					int dice = RandomHelper.nextIntFromTo(0,1);
-					if (dice == 1) {
-						min = Math.abs(fiberDirBins-newAngle);
-						minIndex = i;
-						rotBins = fiberDirBins;
-					}
-				}
-			}
-
-			// Rotate collagen
-			int count2indx = 99;
-			// (M) double rotFrac = adjkOffsetFrac*(newAngle-rotBins)/5;
-			double rotFrac = (newAngle-rotBins)/5;
-			double temp1;
-			double temp2;
-			if (rotFrac >= 0) { //kept
-				temp1 = tempColContent.get(minIndex)+colContent[j]*(1-rotFrac);
-				if (minIndex == 35) {// rotated
-					count2indx = 0;
-				} else {
-					count2indx = minIndex+1;
-				}
-				temp2 = tempColContent.get(count2indx)+colContent[j]*rotFrac;	
-			} else { // kept
-				temp1 = tempColContent.get(minIndex)+colContent[j]*(1+rotFrac);
-				if (minIndex == 0) {
-					count2indx = 35;
-				} else {
-					count2indx = minIndex-1;
-				}
-				temp2 = tempColContent.get(count2indx)-colContent[j]*rotFrac;
-			}
-
-			tempColContent.set(minIndex, temp1);
-			tempColContent.set(count2indx, temp2);				
-		}
-
-		// Update all 36 collagen bins
-		for (int i = 0; i < binNum; i++) {
-			gridValueLayerList.get(i).set(tempColContent.get(i), x, y);
-		}
-	}
-	
-	// Fiber degradation method (Replace degradationInterval with timeStep)
-	public void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> fibringridValueLayerList, double degrationInterval) {
-
-		// Calculate fiber degradation constants with respect to chemokine concentration
-		kColDeg = ((chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColDegMax-kColDegMin)+kColDegMin);
-		kFibDeg = kColDeg;
-
-		// Degrade fibers uniformly across all bins
-		int binNum = gridValueLayerList.size();
-		for (int i = 0; i < binNum; i++) {
-
-			// Collagen degradation 
-			double colContent = gridValueLayerList.get(i).get(x, y);
-			// (M) double newColContent = colContent*(1-kColDeg*adjkColDeg*degrationInterval);
-			double newColContent = colContent*(1-kColDeg*degrationInterval);
-			gridValueLayerList.get(i).set(newColContent, x, y);
-
-			// Fibrin degradation (only within wound)
-			double distToCenter = Math.sqrt(Math.pow((x-gridWidth/2), 2)+Math.pow((y-gridHeight/2), 2));
-			double woundSize = (double) woundRadius/gridUnitSize;
-			if (distToCenter < woundSize) {
-				double fibrinContent = fibringridValueLayerList.get(i).get(x, y);
-				// (M) double newFibrinContent = fibrinContent*(1-kFibDeg*adjkFibDeg*degrationInterval);
-				double newFibrinContent = fibrinContent*(1-kFibDeg*degrationInterval);
-				fibringridValueLayerList.get(i).set(newFibrinContent, x, y);
-			}
-		}
-	}
-	
-	// Aligned collagen deposition method (MATLAB deltaCol is divided by number of local collagen fibers) (alignedDepFrac is not in MATLAB model) (random max collagen check) (shortened bin assignment) (this.chemolevel required?) (Replace depositionIterval with timeStep)
-	public void collagenDeposition(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, double depositionInterval) {
-
-		// Calculate collagen fiber generation rate based on chemokine concentration
-		kColGen = ((chemokine.get(x, y))-concMin)/(concMax-concMin)*(kColGenMax-kColGenMin)+kColGenMin;
-		this.chemolevel = chemokine.get(x, y);
-		
-		// Set collagen deposition angle based on deposition type
-		double depoAngle;
-		double cellAngle = this.angleSelection;
-		if (depoType.equals("Aligned")) {
-			depoAngle = cellAngle;
-		} else {
-			depoAngle = RandomHelper.nextDoubleFromTo(-180, 180);
-		}
-		
-		// Correct angles outside of the collagen bin range
-		if (cellAngle <= -90.0) {
-			depoAngle = cellAngle+180.0;
-		} else if (cellAngle > 90.0) {
-			depoAngle = cellAngle-180.0;
-		}
-		depoAngle = Math.toDegrees(Math.atan(Math.sin(Math.toRadians(depoAngle))/
-				Math.cos(Math.toRadians(depoAngle))));
-		
-		// Assign to the closest bin (follow JPhysio codes but above line should do the same thing)
-		double min = 360.0;
-		int bin = 99;
-		double[] colBins = new double[36];
-		int binNum = gridValueLayerList.size();
-		for (int i = 0; i < binNum; i++) {
-			colBins[i] = fiberBinSIZE*i-87.5;
-			if (Math.abs(colBins[i]-depoAngle) < min) {
-				min = Math.abs(colBins[i]-depoAngle);
-				bin = i;
-			} else if (Math.abs(colBins[i]-depoAngle) == min) {
-				int dice = RandomHelper.nextIntFromTo(0,1);
-				if (dice == 1) {
-					min = Math.abs(colBins[i]-depoAngle);
-					bin = i;
-				}
-			}
-		}
-
-		int colarrayindexsim = (int) Math.ceil(depoAngle/fiberBinSIZE)+17; // 36 bins (changed)
-		if (!(colarrayindexsim == bin)) {
-			System.out.println("Shortened bin assignment failed (Deposition): oldBin: "+bin+"   newBin: "+colarrayindexsim);
-		}
-		
-		// Deposit collagen	if there is room in the selected bin
-		double colContent = gridValueLayerList.get(bin).get(x, y);
-		if (colContent < 1000000) {
-			
-			// Deposit the aligned collagen
-			double deltaCol = depositionInterval*adjColGen*kColGen;
-			double newColContent = colContent+(deltaCol*alignedDepFrac);
-			gridValueLayerList.get(bin).set(newColContent, x, y);
-			
-			// Deposit a portion of the collagen randomly
-			int randBin = RandomHelper.nextIntFromTo(0,35);
-			double newColContent2 = gridValueLayerList.get(randBin).get(x, y)+deltaCol*(1-alignedDepFrac);
-			gridValueLayerList.get(randBin).set(newColContent2, x, y);
-		} else {
-			System.out.println("Collagen content exceeds maximum value");
-		}
-	}
-
-	// Returns a list of sites which are available for a potential daughter cell (Move extent stepping (migration) here)
+	// Returns a list of sites which are available for a potential daughter cell
 	private List<GridPoint> getMigrationSite(Grid<?> grid, int x, int y, int extent, double angle) {
-		
+
 		int[] angleWindow = new int[] {45,30,18,15,13,11,10,9,8,7};
-		
+
 		double smallestAngle = 360;
 		int siteX = -1;
 		int siteY = -1;
-		
+
 		// Iterate through potential sites
 		List<GridPoint> emptySites = new ArrayList<GridPoint>();
 		for (int i = -extent; i <= extent; i++) {
 			for (int j = -extent; j <= extent; j++) {
 				int xCoor = x+i;
 				int yCoor = y+j;
-				
+
 				// Check if the site is within the radial distance
 				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2));
 				if ((dist <= extent && dist > extent-1) || extent == 1) {
-				//if ((dist <= extent+0.25*gridUnitSize && dist > extent-1+0.25*gridUnitSize) || extent == 1) {
 
 					// Correct out of range site angles
 					double siteAngle = Math.toDegrees(Math.atan2(yCoor-y, xCoor-x));
@@ -925,7 +874,7 @@ public class CellAgentSim {
 					if (angle > 270 && siteAngle == 0) {
 						siteAngle = 360;
 					}
-					
+
 					// Check if the site is the closest site within the angle window
 					double siteAngleDiff = Math.abs(siteAngle-angle);
 					if (siteAngleDiff <= angleWindow[extent-1] && siteAngleDiff <= smallestAngle) {
@@ -941,7 +890,7 @@ public class CellAgentSim {
 						} else if (yCoor >= gridHeight) {
 							yCoor = yCoor-gridHeight;
 						}
-						
+
 						// Record site
 						smallestAngle = siteAngleDiff;
 						siteX = xCoor;
@@ -950,12 +899,12 @@ public class CellAgentSim {
 				}
 			}
 		}
-		
+
 		// Check if and appropriate site has been identified
 		if (siteX == -1 || siteY == -1) {
-		
+
 		}
-		
+
 		// Check if the appropriate site's surrounding area is free
 		else if (!grid.getObjectsAt(siteX, siteY).iterator().hasNext()) {
 
@@ -966,17 +915,17 @@ public class CellAgentSim {
 			}
 			else {
 				if (findNumNeighbor(grid, siteX, siteY) < 1) {
-					emptySites.add(new GridPoint(siteX, siteY));						
+					emptySites.add(new GridPoint(siteX, siteY));	
 				}
 			}
 		}
-		
+
 		return emptySites;
 	}
 
 	// Returns a list of sites which are available for a potential daughter cell
 	private List<GridPoint> getEmptySites(Grid<?> grid, int x, int y, int extent) {
-		
+
 		// Iterate through potential sites
 		List<GridPoint> emptySites = new ArrayList<GridPoint>();
 		for (int i = -extent; i <= extent; i++) {
@@ -987,7 +936,7 @@ public class CellAgentSim {
 				// Check if the site is within the radial distance
 				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2));
 				if (dist <= extent+0.25*gridUnitSize || extent == 1) {
-					
+
 					// Wrapped space
 					if (xCoor < 0) {
 						xCoor = xCoor+gridWidth;
@@ -1011,21 +960,21 @@ public class CellAgentSim {
 						}
 						else {
 							if (findNumNeighbor(grid, xCoor, yCoor) < 1) {
-								emptySites.add(new GridPoint(xCoor,yCoor));						
+								emptySites.add(new GridPoint(xCoor,yCoor));	
 							}
 						}
 					}
 				}
 			}
 		}
-		
+
 		Collections.shuffle(emptySites);	
 		return emptySites;
 	}
 
 	// Returns the number of agents in the exclusion area of a grid point
 	int findNumNeighbor(Grid<?> grid, int x, int y) {
-		
+
 		// Iterate through neighboring sites
 		int extent = gridDiameter;
 		int numNeighbors = 0;
@@ -1036,7 +985,7 @@ public class CellAgentSim {
 
 				// Check if the site is within the radial distance
 				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2));
-				if (dist < gridDiameter/*extent-1+0.1*gridUnitSize*/) {
+				if (dist < gridDiameter) {
 
 					// Wrapped space
 					if (xCoor < 0) {
@@ -1049,7 +998,7 @@ public class CellAgentSim {
 					} else if (yCoor >= gridHeight) {
 						yCoor = yCoor-gridHeight;
 					}
-					
+
 					// Check if site is occupied
 					if (grid.getObjectsAt(xCoor, yCoor).iterator().hasNext()) {
 						numNeighbors = numNeighbors+1;
@@ -1057,25 +1006,7 @@ public class CellAgentSim {
 				}
 			}
 		}
-		
+
 		return numNeighbors;
-	}
-
-	// Returns a data string of static fibroblast parameters for model specification
-	public static String[][] getFibroblastParameters() {
-
-		String heading = "DepoType,CollagenRot,Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
-		String output = depoType+","+Boolean.toString(colRotation)+","+Boolean.toString(cellRemoval)+","+
-				Double.toString(gMitosisTime)+","+Double.toString(gApoptosisTime)+","+
-				Double.toString(gDepositionTime)+","+Double.toString(gDegradationTime)+","+
-				Double.toString(Wp)+","+Double.toString(Wc)+","+Double.toString(Ws)+","+
-				Double.toString(Wm);
-
-		// Build data string
-		String[][] parameters = new String[1][2];
-		parameters[0][0] = heading;
-		parameters[0][1] = output;
-		
-		return parameters;
 	}
 }
