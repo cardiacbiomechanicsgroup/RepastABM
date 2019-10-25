@@ -274,7 +274,7 @@ public class CellAgentSim {
 	private double guidanceCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Maximum chemokine gradient based on diffusion, generation, and degradation parameters
-		double kcdeg = 0.001;         // 1/s
+		double kcdeg = 0.001;         	// 1/s
 		double Dc = 100;              	// um2/s
 		double L = 2828;              	// um
 		double lam = Math.sqrt(kcdeg/Dc);  	// 1/um

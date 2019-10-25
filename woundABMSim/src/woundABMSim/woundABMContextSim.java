@@ -56,12 +56,11 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	ArrayList<ArrayList<double[]>> initialFiberArrayList;
 	private ArrayList<GridValueLayer> gridvaluelayerlist;
 	private ArrayList<GridValueLayer> fibringridvaluelayerlist;
-	// (C) private String[] basicValueLayer = {"Collagen MVA", "Collagen MVL", "Collagen Sum", "Fibrin Sum"};
-	private String[] basicValueLayer = {"Collagen Sum", "Fibrin Sum"};
+	private String[] basicValueLayer = {"Collagen MVA", "Collagen MVL", "Collagen Sum", "Fibrin Sum"};
 	private String[] cueValueLayer = {"CM", "CX", "CY", "MM", "MX", "MY"};
 	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
-	private int fiberBinSize = 5;									// degrees
+	private int binSize = 5;									// degrees
 	
 	private String initialFiberDist = (String) p.getValue("initialFiberDist");	// "Circumferential" "Longitudinal" or "Uniform"
 	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
@@ -147,7 +146,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				double localFiberSumY = 0;
 				int binNum = gridvaluelayerlist.size();
 				for (int i = 0; i < binNum; i++) { 
-					fiberBin = fiberBinSize*(i)-87.5;
+					fiberBin = binSize*(i)-87.5;
 					double value = gridvaluelayerlist.get(i).get(x, y);
 					localFiberSumX = localFiberSumX+value*Math.cos(Math.toRadians(2*fiberBin));
 					localFiberSumY = localFiberSumY+value*Math.sin(Math.toRadians(2*fiberBin));
@@ -405,32 +404,25 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 	}
 
-	// Calculate chemokine guidance cue vectors (remove /1.5)
+	// Calculate chemokine guidance cue vectors
 	private double[] calculateChemoCue(int x, int y) {
 		GridValueLayer chemokine = (GridValueLayer) getValueLayer("Chemokine");
 
 		// Integrate chemokine concentration over cell perimeter
 		double gradientX = 0.0;
 		double gradientY = 0.0;
-		List<GridPoint> edgeSites = cellPerimeter(x, y, cellRadius);
-		edgeSites.add(new GridPoint(edgeSites.get(0).getX(),edgeSites.get(0).getY()));
-		int numSites = edgeSites.size();
-		for (int i = 1; i < numSites; i++) {
-			GridPoint site1 = edgeSites.get(i-1);
-			GridPoint site2 = edgeSites.get(i);
-			int x1 = site1.getX();
-			int y1 = site1.getY();
-			int x2 = site2.getX();
-			int y2 = site2.getY();
-			double ang1 = Math.atan2((y-y1),(x1-x));
-			double ang2 = Math.atan2((y-y2),(x2-x));
-			if (ang2-ang1 < 0) {
-				ang1 = ang1*-1;
-			}
+		double cellGridRadius = cellRadius/gridUnitSize;
+		List<double[]> data = perimeterData(x, y, cellGridRadius, chemokine);
+		int num = data.size();
+		for (int i = 1; i < num; i++) {
+			double[] data1 = data.get(i-1);
+			double[] data2 = data.get(i);
+			double ang1 = data1[0];
+			double ang2 = data2[0];
 
 			// Integrate using the trapezoidal method
-			double chemo1 = chemokine.get(x1, y1);
-			double chemo2 = chemokine.get(x2, y2);
+			double chemo1 = data1[3];
+			double chemo2 = data2[3];
 			double trapPart = 0.5*(ang2-ang1);
 			gradientX = gradientX+trapPart*(chemo1*Math.cos(ang1)+chemo2*Math.cos(ang2));
 			gradientY = gradientY+trapPart*(chemo1*Math.sin(ang1)+chemo2*Math.sin(ang2));
@@ -452,7 +444,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 		return new double[] {CMre, CXre, CYre};
 	}
-
+	
 	// Calculate strain guidance cue vectors
 	private double[] calculateStrainCue(int x, int y) {
 
@@ -548,69 +540,70 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		return new double[] {MMre, MXre, MYre};
 	}
 
-	// Returns a list containing all the grids within one half grid from the perimeter
-	private List<GridPoint> cellPerimeter(int x, int y, double radius) {
+	// Returns data at the perimeter of the cell for the specified grid value layer 
+	private List<double[]> perimeterData(int x, int y, double radius, GridValueLayer layer) {
 
-		// Build list of neighbors
-		int extent = (int) Math.floor(radius/gridUnitSize);
-		if (extent == 0) {
-			extent = 1;
-		}
+		// Build perimeter list from neighbor list
+		List<double[]> data = new ArrayList<double[]>();
+		for (int angle = 0; angle <= 360; angle++) {
+			double xCoor = x+radius*Math.cos(angle);
+			double yCoor = y+radius*Math.sin(angle);
 
-		// Build perimeter list from neighbor list by checking the distance
-		List<GridPoint> edgeSites = new ArrayList<GridPoint>();
-		for (int i = -extent; i <= 0; i++) {	// Quadrant 3
-			for (int j = 0; j <= extent; j++) {
-				int xCoor = x+i;
-				int yCoor = y+j;
-				GridPoint point = new GridPoint(xCoor,yCoor);
-				double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
-				if (dist <= radius+gridUnitSize && dist >= radius) {
-					edgeSites.add(point);
-				}
-			}
-		}
-		for (int i = 0; i <= extent ; i++) {	// Quadrant 4
-			for (int j = extent; j >= 0; j--) {
-				int xCoor = x+i;
-				int yCoor = y+j;
-				GridPoint point = new GridPoint(xCoor,yCoor);
-				if (!edgeSites.contains(point)) {
-					double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
-					if (dist <= radius+gridUnitSize && dist >= radius) {
-						edgeSites.add(point);
-					}
-				}
-			}
-		}
-		for (int i = extent; i >= 0 ; i--) {	// Quadrant 1
-			for (int j = 0; j >= -extent; j--) {
-				int xCoor = x+i;
-				int yCoor = y+j;
-				GridPoint point = new GridPoint(xCoor,yCoor);
-				if (!edgeSites.contains(point)) {
-					double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
-					if (dist <= radius+gridUnitSize && dist >= radius) {
-						edgeSites.add(point);
-					}
-				}
-			}
-		}
-		for (int i = 0; i >= -extent ; i--) {	// Quadrant 2
-			for (int j = -extent; j <= 0; j++) {
-				int xCoor = x+i;
-				int yCoor = y+j;
-				GridPoint point = new GridPoint(xCoor,yCoor);
-				if (!edgeSites.contains(point)) {
-					double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2))*gridUnitSize;
-					if (dist <= radius+gridUnitSize && dist >= radius) {
-						edgeSites.add(point);
-					}
-				}
+			// Determine surrounding coordinates
+			int x1 = (int) Math.floor(xCoor);
+			int x2 = (int) Math.ceil(xCoor);
+			int y1 = (int) Math.floor(yCoor);
+			int y2 = (int) Math.ceil(yCoor);
+			
+			// Wrapped space (only applies to layer calls)
+			int x1w = wrapCoordinate(x1, gridWidth);
+			int y1w = wrapCoordinate(y1, gridHeight);
+			
+			// Bilinearly interpolate the data for the current x and y coordinates
+			if (x1 == xCoor && y1 == yCoor) {
+				double fxy = layer.get(x1w,y1w);
+				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				data.add(value);
+			} else if (x1 == xCoor) {
+				int y2w = wrapCoordinate(y2, gridHeight);
+				double fxy = (yCoor-y1)*(layer.get(x1w, y2w)-layer.get(x1w, y1w))/(y2-y1)+layer.get(x1w, y1w);
+				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				data.add(value);
+			} else if (y1 == yCoor) {
+				int x2w = wrapCoordinate(x2, gridWidth);
+				double fxy = (xCoor-x1)*(layer.get(x2w, y1w)-layer.get(x1w, y1w))/(x2-x1)+layer.get(x1w, y1w);
+				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				data.add(value);
+			} else {
+				int x2w = wrapCoordinate(x2, gridWidth);
+				int y2w = wrapCoordinate(y2, gridHeight);
+				double xDif = (x2-x1);
+				double yDif = (y2-y1);
+				double xRatio1 = (x2-xCoor)/xDif;
+				double xRatio2 = (xCoor-x1)/xDif;
+				double fxy1 = xRatio1*layer.get(x1w, y1w)+xRatio2*layer.get(x2w, y1w);
+				double fxy2 = xRatio1*layer.get(x1w, y2w)+xRatio2*layer.get(x2w, y2w);
+				double fxy = (y2-yCoor)/yDif*fxy1+(yCoor-y1)/yDif*fxy2;
+				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				data.add(value);
 			}
 		}
 
-		return edgeSites;
+		return data;
+	}
+	
+	// Checks if a coordinate falls outside of the model space and wraps it if it does
+	public int wrapCoordinate(int oldCoor, int dimLength) {
+		
+		// Check and wrap coordinate
+		int newCoor = oldCoor;
+		if (oldCoor < 0) {
+			newCoor = oldCoor+dimLength;
+		} else if (oldCoor > dimLength) {
+			newCoor = oldCoor-dimLength;
+		}
+		
+		return newCoor;
 	}
 	
 /* Data collection methods */
@@ -630,7 +623,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Build data strings
 		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin,DepoType,CollagenRot,..."
-				+ "Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,WpWc,Ws,Wm";
+				+ "Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
 		String output = Double.toString(gridUnitSize)+","+Double.toString(sampleWidth)+","+
 				Double.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
 				initialFiberDist+","+Boolean.toString(includeFibrin)+","+depoType+","+
@@ -694,7 +687,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double colSumX = 0;
 		double colSumY = 0;
 		for (int i = 0; i < binNum; i++) {	
-			double fiberBin = fiberBinSize*(i)-87.5;
+			double fiberBin = binSize*(i)-87.5;
 			double fiberBinRad = Math.toRadians(2*fiberBin);
 			colSumX = colSumX+binColSum[i]*Math.cos(fiberBinRad);
 			colSumY = colSumY+binColSum[i]*Math.sin(fiberBinRad);
@@ -709,7 +702,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double fibSumX = 0;
 		double fibSumY = 0;
 		for (int i = 0; i < binNum; i++) {	
-			double fiberBin = fiberBinSize*(i)-87.5;
+			double fiberBin = binSize*(i)-87.5;
 			double fiberBinRad = Math.toRadians(2*fiberBin);
 			fibSumX = fibSumX+binFibSum[i]*Math.cos(fiberBinRad);
 			fibSumY = fibSumY+binFibSum[i]*Math.sin(fiberBinRad);
