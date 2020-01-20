@@ -42,6 +42,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private double gDegradationTime = (Double) p.getValue("degradationTime");
 	private boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
 	private boolean colRotation = (Boolean) p.getValue("colRotation");
+	private double timeStep = 0.5;	// hr
 	
 	// Geometry
 	double sampleWidth = (Double) p.getValue("sampleWidth");			// um
@@ -61,9 +62,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
 	private int binSize = 5;									// degrees
-	
 	private String initialFiberDist = (String) p.getValue("initialFiberDist");	// "Circumferential" "Longitudinal" or "Uniform"
 	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
+	private double scalePercent = (double) p.getValue("initialColPercent")/3.0;		// 3% normally
 	
 	// Output file specification
 	private String outputDir = "output";
@@ -130,11 +131,11 @@ public class woundABMContextSim extends DefaultContext<Object> {
 
 /* Primary scheduled methods in order of execution */
 	// Initialize and set collagen grid value layers (move to data collection)
-	@ScheduledMethod(start = 0, priority = 0.5, interval = 1)
+	@ScheduledMethod(start = 0, priority = 0.5, interval = 0.5)
 	public void CollagenValueLayer() {
 		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
-		// (C) GridValueLayer colMVA = (GridValueLayer) getValueLayer("Collagen MVA");
-		// (C) GridValueLayer colMVL = (GridValueLayer) getValueLayer("Collagen MVL");
+		// Note: unnecessary, GridValueLayer colMVA = (GridValueLayer) getValueLayer("Collagen MVA");
+		// Note: unnecessary, GridValueLayer colMVL = (GridValueLayer) getValueLayer("Collagen MVL");
 		GridValueLayer fibSum = (GridValueLayer) getValueLayer("Fibrin Sum");
 		
 		double fiberBin = 0;
@@ -142,26 +143,26 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			for (int x = 0; x < gridWidth; x++) {
 				double tempColSum = 0;
 				double tempFibSum = 0;
-				double localFiberSumX = 0;
-				double localFiberSumY = 0;
+				//double localFiberSumX = 0;
+				//double localFiberSumY = 0;
 				int binNum = gridvaluelayerlist.size();
 				for (int i = 0; i < binNum; i++) { 
-					fiberBin = binSize*(i)-87.5;
+					fiberBin = 2*Math.toRadians(binSize*(i)-87.5);
 					double value = gridvaluelayerlist.get(i).get(x, y);
-					localFiberSumX = localFiberSumX+value*Math.cos(Math.toRadians(2*fiberBin));
-					localFiberSumY = localFiberSumY+value*Math.sin(Math.toRadians(2*fiberBin));
+					//localFiberSumX = localFiberSumX+value*Math.cos(fiberBin);
+					//localFiberSumY = localFiberSumY+value*Math.sin(fiberBin);
 					tempColSum = tempColSum+value;
 					tempFibSum = tempFibSum+fibringridvaluelayerlist.get(i).get(x, y);
 				}
-				// (C) double localMeanColSumX = localFiberSumX/tempColSum;
-				// (C) double localMeanColSumY = localFiberSumY/tempColSum;
-				// (C) double localColMVA = 0.5*Math.toDegrees(Math.atan2(localMeanColSumY, localMeanColSumX));
-				// (C) double localColMVL = Math.sqrt(Math.pow(localMeanColSumX,2)+Math.pow(localMeanColSumY,2));		
+				// Note: unnecessary, double localMeanColSumX = localFiberSumX/tempColSum;
+				// Note: unnecessary, double localMeanColSumY = localFiberSumY/tempColSum;
+				// Note: unnecessary, double localColMVA = 0.5*Math.toDegrees(Math.atan2(localMeanColSumY, localMeanColSumX));
+				// Note: unnecessary, double localColMVL = Math.sqrt(Math.pow(localMeanColSumX,2)+Math.pow(localMeanColSumY,2));		
 				
 				// Update grid value layers			
 				colSum.set(tempColSum, x, y);
-				// (C) colMVA.set(localColMVA, x, y);
-				// (C) colMVL.set(localColMVL, x, y);	
+				// Note: unnecessary, colMVA.set(localColMVA, x, y);
+				// Note: unnecessary, colMVL.set(localColMVL, x, y);	
 				fibSum.set(tempFibSum, x, y);
 			}
 		}
@@ -199,7 +200,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			for (int j = 0; j < gridHeight; j++) {
 				int binNum = gridValueLayerList.size();
 				for (int k = 0; k < binNum; k++) {
-					gridValueLayerList.get(k).set(36*scalingFactor*distrib[k], i, j);
+					gridValueLayerList.get(k).set(scalePercent*36*scalingFactor*distrib[k], i, j);
 					if (includeFibrin == true) {
 						fibringridValueLayerList.get(k).set(25*36*scalingFactor*distrib[k], i, j);
 					} else {
@@ -213,31 +214,93 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	// Initialize chemokine gradient grid value layer
 	@ScheduledMethod(start = 0, priority = 3)
 	public void initializeChemoLayer() throws Exception {
-
+		GridValueLayer chemokine = (GridValueLayer) getValueLayer("Chemokine");
+		
 		// Check if input file is in current directory (added for batch runs)
-		String path;
-		File f = new File("input");
-		if (!f.exists()) {	// change path to your directory
-			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
-		} 
-		else {
-			path = "input";
-		}
-
-		// If the file with the correct gridWidth does not exist, interpolate one
+		String path = "C:\\Users\\acb4ft\\Desktop\\WoundABM\\woundABMSim\\input";
+		
+		double woundGridNum = (double) (woundRadius/gridUnitSize);
+		double wCenter = gridWidth/2;
+		double hCenter = gridHeight/2;
+		
+		// If the file with the correct gridWidth does not exist, create one
 		String csvFilename = path+"\\ConcMean_"+gridWidth+".csv";
 		File file = new File(csvFilename);
 		if (!file.exists()) {
-			GridInterpolator gi = new GridInterpolator();
-			gi.interpolateCSV(path+"\\ConcMean_48.csv", gridWidth);
+			for (int y = 0; y < gridHeight; y++) {
+				for (int x = 0; x < gridWidth; x++) {
+					if (Math.sqrt(Math.pow((x-wCenter), 2)+Math.pow((y-hCenter), 2)) <= woundGridNum) {
+						chemokine.set(1, x, y);
+					} else {
+						chemokine.set(0, x, y);
+					}
+				}
+			}
+			diffuseChemoLayer();
+			
+		} else {	// Set chemokine value layer to CSV values
+			CSVReader csvConc = new CSVReader(new FileReader(csvFilename.toString()));
+			setValuelayer(csvConc, chemokine);
 		}
-		
-		// Set chemokine value layer to CSV values
-		CSVReader csvConc = new CSVReader(new FileReader(csvFilename.toString()));
-		GridValueLayer chemokine = (GridValueLayer) getValueLayer("Chemokine");
-		setValuelayer (csvConc, chemokine);
 	}
 
+	// Diffuse chemokine gradient grid value layer
+	public void diffuseChemoLayer() {
+		
+		
+		double ds = gridUnitSize;	// um
+		double dt = 200;	// s
+		
+		// Diffusion parameters
+		double D=0.16;	// um^2/s
+		double M = 1;	// nM
+		
+		// Determine filter size
+	    double val = 1;
+	    double edge = 0;
+	    double cutoff = Math.pow(10,-6);
+	    while (val >= cutoff) {
+	        edge = edge + ds;
+	        val=M*Math.exp(-(Math.pow(edge, 2)+0)/(4*D*dt))/(4*Math.PI*D*dt);
+	    }
+	    
+	    double[] filtXtnt = new double[] {};
+	    double loc = -edge;
+	    int k = 0;
+	    while (loc >= edge) {
+	    	filtXtnt[k]= loc;
+	    	loc = loc+ds;
+	    	k++;
+	    }
+	    int filterSize = filtXtnt.length;
+	    double[][] irf = new double[filterSize][filterSize];
+	    for (int i = 0; i < filterSize; i++) {
+	        for (int j = 0; i < filterSize; i++) {
+	            irf[i][j] = Math.pow(ds, 2)*M*Math.exp(-(Math.pow(filtXtnt[i], 2)+Math.pow(filtXtnt[j], 2))/(4*D*dt))/(4*Math.PI*D*dt);
+	        }
+	    }
+	    
+	    // Transform chemokine GridValueLayer to matrix and adjust values to reflect spatial scaling
+	    double[][] C = new double[gridWidth][gridHeight];
+	    GridValueLayer chemokine = (GridValueLayer) getValueLayer("Chemokine");
+		for (int j = 0; j < gridHeight; j++) {
+			for (int i = 0; i < gridWidth; i++) {
+				C[i][j] = Math.pow(ds,-2)*chemokine.get(i,j);
+			}
+		}
+		
+		// Iterative production, degradation, and diffusion
+	    int iterations = (int) (timeStep*60*60/dt);
+	    C = convolutionType2(C,gridWidth,gridHeight,irf,filterSize,filterSize,iterations);
+		
+	    // Reset chemokine layer
+		for (int j = 0; j < gridHeight; j++) {
+			for (int i = 0; i < gridWidth; i++) {
+				chemokine.set(C[i][j], i, j);
+			}
+		}
+	}
+	
 	// Initialize grid value layers of cues
 	@ScheduledMethod(start = 0, priority = 2)
 	public void initializeCueLayers() throws Exception {
@@ -246,7 +309,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		String path;
 		File f = new File("input");
 		if (!f.exists()) {	// change path to your directory
-			path = "C:\\Users\\abake\\Desktop\\WoundABM\\woundABMSim\\input";
+			path = "C:\\Users\\acb4ft\\Desktop\\WoundABM\\woundABMSim\\input";
 		} 
 		else {
 			path = "input";
@@ -331,6 +394,70 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	}
 
 	/* Secondary methods */
+	// Computes a 2D zero padded convolution between an input and a filter over multiple iterations
+	public double [][] convolutionType2(double [][] input, int width, int height, double [][] filt, int filtWidth, int filtHeight, int iterations){
+		double [][] newInput = (double [][]) input.clone();
+		double [][] output = (double [][]) input.clone();
+
+		for(int i=0;i<iterations;++i){
+			output = new double [width][height];
+			output = convolution2DPadded(newInput,width,height,filt,filtWidth,filtHeight);
+			newInput = (double [][]) output.clone();
+		}
+		return output;
+	}
+
+	// Computes 2d zero padded convolution between an input and a filter
+	public double [][] convolution2DPadded(double [][] input, int width, int height, double [][] filt, int filtWidth, int filtHeight){
+		int smallWidth = width - filtWidth + 1;
+		int smallHeight = height - filtHeight + 1; 
+		int top = filtHeight/2;
+		int left = filtWidth/2;
+		double small [][] = new double [smallWidth][smallHeight];
+		small = convolution2D(input,width,height,filt,filtWidth,filtHeight);
+		double large [][] = new double [width][height];
+		for(int j=0;j<height;++j){
+			for(int i=0;i<width;++i){
+				large[i][j] = 0;
+			}
+		}
+		for(int j=0;j<smallHeight;++j){
+			for(int i=0;i<smallWidth;++i){
+				large[i+left][j+top]=small[i][j];
+			}
+		}
+		return large;
+	}
+	
+	// Computes the 2D convolution between an input and a filter
+	public double [][] convolution2D(double [][] input, int width, int height, double [][] filt, int filtWidth, int filtHeight){
+		int smallWidth = width - filtWidth + 1;
+		int smallHeight = height - filtHeight + 1; 
+		double [][] output = new double [smallWidth][smallHeight];
+		for(int i=0;i<smallWidth;++i){
+			for(int j=0;j<smallHeight;++j){
+				output[i][j]=0;
+			}
+		}
+		for(int i=0;i<smallWidth;++i){
+			for(int j=0;j<smallHeight;++j){
+				output[i][j] = singlePointConvolution(input,i,j,filt,filtWidth,filtHeight);
+			}
+		}
+		return output;
+	}
+
+	// Computes the value of a convolution between an input and a filter at one point in the input 
+	public double singlePointConvolution(double [][] input, int x, int y, double [][] filt, int filtWidth, int filtHeight){
+		double output = 0;
+		for(int i = 0; i < filtWidth; ++i){
+			for(int j = 0; j < filtHeight; ++j){
+				output = output+(input[x+i][y+j]*filt[i][j]);
+			}
+		}
+		return output;
+	}
+	
 	// Create an array list that holds 36 grid value layers of collagen bins
 	public ArrayList<GridValueLayer> GridValueLayerList() {
 
@@ -367,15 +494,14 @@ public class woundABMContextSim extends DefaultContext<Object> {
 
 	// Read in a CSV file and set it as grid value layer
 	public void setValuelayer (CSVReader csvfile, GridValueLayer valueLayer) throws IOException {
-		int j = 0;
+
 		String[] row = null;
-		while (j < gridHeight) {
-			while ((row = csvfile.readNext()) !=  null) {
-				for (int i = 0; i < gridWidth; i++) {
-					double doubleRow = Double.parseDouble(row[i]);
-					valueLayer.set(doubleRow, i, j);
-				}
-				j++;
+		for (int j = 0; j < gridHeight; j++) {
+			// Note: cause issues with deleted rows while ((row = csvfile.readNext()) !=  null) {
+			row = csvfile.readNext();
+			for (int i = 0; i < gridWidth; i++) {
+				double doubleRow = Double.parseDouble(row[i]);
+				valueLayer.set(doubleRow, i, j);
 			}
 		}
 		csvfile.close();
@@ -429,8 +555,11 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 
 		// Calculate chemokine gradient cue vectors
+		/*// Note: the below is the previous Repast version
 		double meanGradientX = 0.25/Math.PI*gradientX;
-		double meanGradientY = 0.25/Math.PI*gradientY;
+		double meanGradientY = 0.25/Math.PI*gradientY;*/
+		double meanGradientX = 0.5/Math.PI*gradientX;
+		double meanGradientY = 0.5/Math.PI*gradientY;
 		double CMre = Math.sqrt(Math.pow(meanGradientX, 2)+Math.pow(meanGradientY, 2)); 
 		double CXre = meanGradientX/CMre;
 		double CYre = meanGradientY/CMre;
@@ -523,8 +652,6 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			double normY2 = Math.sin(ang2);
 			double normStrain2 = (strainXX2*normX2+strainXY2*normY2)*normX2+(strainXY2*normX2+strainYY2*normY2)*normY2;
 
-
-
 			// Calculate strain components by integration using the trapezoidal method (checked)
 			double trapPart = 0.25*(ang2-ang1)/Math.PI;
 			meanStrainX = meanStrainX+trapPart*(normStrain2*Math.cos(2*ang2)+normStrain1*Math.cos(2*ang1));
@@ -546,8 +673,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		// Build perimeter list from neighbor list
 		List<double[]> data = new ArrayList<double[]>();
 		for (int angle = 0; angle <= 360; angle++) {
-			double xCoor = x+radius*Math.cos(angle);
-			double yCoor = y+radius*Math.sin(angle);
+			double angleRad = Math.toRadians(angle);
+			double xCoor = x+radius*Math.cos(angleRad);
+			double yCoor = y+radius*Math.sin(angleRad);
 
 			// Determine surrounding coordinates
 			int x1 = (int) Math.floor(xCoor);
@@ -562,17 +690,17 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			// Bilinearly interpolate the data for the current x and y coordinates
 			if (x1 == xCoor && y1 == yCoor) {
 				double fxy = layer.get(x1w,y1w);
-				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				double[] value = new double[] {angleRad,xCoor,yCoor,fxy};
 				data.add(value);
 			} else if (x1 == xCoor) {
 				int y2w = wrapCoordinate(y2, gridHeight);
 				double fxy = (yCoor-y1)*(layer.get(x1w, y2w)-layer.get(x1w, y1w))/(y2-y1)+layer.get(x1w, y1w);
-				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				double[] value = new double[] {angleRad,xCoor,yCoor,fxy};
 				data.add(value);
 			} else if (y1 == yCoor) {
 				int x2w = wrapCoordinate(x2, gridWidth);
 				double fxy = (xCoor-x1)*(layer.get(x2w, y1w)-layer.get(x1w, y1w))/(x2-x1)+layer.get(x1w, y1w);
-				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				double[] value = new double[] {angleRad,xCoor,yCoor,fxy};
 				data.add(value);
 			} else {
 				int x2w = wrapCoordinate(x2, gridWidth);
@@ -584,7 +712,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				double fxy1 = xRatio1*layer.get(x1w, y1w)+xRatio2*layer.get(x2w, y1w);
 				double fxy2 = xRatio1*layer.get(x1w, y2w)+xRatio2*layer.get(x2w, y2w);
 				double fxy = (y2-yCoor)/yDif*fxy1+(yCoor-y1)/yDif*fxy2;
-				double[] value = new double[] {Math.toRadians(angle),xCoor,yCoor,fxy};
+				double[] value = new double[] {angleRad,xCoor,yCoor,fxy};
 				data.add(value);
 			}
 		}
@@ -687,10 +815,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double colSumX = 0;
 		double colSumY = 0;
 		for (int i = 0; i < binNum; i++) {	
-			double fiberBin = binSize*(i)-87.5;
-			double fiberBinRad = Math.toRadians(2*fiberBin);
-			colSumX = colSumX+binColSum[i]*Math.cos(fiberBinRad);
-			colSumY = colSumY+binColSum[i]*Math.sin(fiberBinRad);
+			double fiberBin = 2*Math.toRadians(binSize*(i)-87.5);
+			colSumX = colSumX+binColSum[i]*Math.cos(fiberBin);
+			colSumY = colSumY+binColSum[i]*Math.sin(fiberBin);
 		}
 		double meanColSumX = colSumX/woundColSum;
 		double meanColSumY = colSumY/woundColSum;
@@ -702,10 +829,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double fibSumX = 0;
 		double fibSumY = 0;
 		for (int i = 0; i < binNum; i++) {	
-			double fiberBin = binSize*(i)-87.5;
-			double fiberBinRad = Math.toRadians(2*fiberBin);
-			fibSumX = fibSumX+binFibSum[i]*Math.cos(fiberBinRad);
-			fibSumY = fibSumY+binFibSum[i]*Math.sin(fiberBinRad);
+			double fiberBin = 2*Math.toRadians(binSize*(i)-87.5);
+			fibSumX = fibSumX+binFibSum[i]*Math.cos(fiberBin);
+			fibSumY = fibSumY+binFibSum[i]*Math.sin(fiberBin);
 		}
 		double meanFibSumX = fibSumX/woundFibSum;
 		double meanFibSumY = fibSumY/woundFibSum;
@@ -721,10 +847,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		for (CellAgentSim cell : cells) {
 			GridPoint pt = grid.getLocation(cell);
 			if (Math.sqrt(Math.pow((pt.getX()-wCenter), 2)+Math.pow((pt.getY()-hCenter), 2)) <= woundGridNum) {
-				double cellAngle = cell.angleSelection;
-				double cellAngleRad = Math.toRadians(2*cellAngle);
-				cellSumX = cellSumX+Math.cos(cellAngleRad);
-				cellSumY = cellSumY+Math.sin(cellAngleRad);
+				double cellAngle = 2*Math.toRadians(cell.angleSelection);
+				cellSumX = cellSumX+Math.cos(cellAngle);
+				cellSumY = cellSumY+Math.sin(cellAngle);
 				cellSum = cellSum+1;
 			}
 		}
@@ -804,4 +929,5 @@ public class woundABMContextSim extends DefaultContext<Object> {
 			e.printStackTrace();
 		}
 	}
+
 }

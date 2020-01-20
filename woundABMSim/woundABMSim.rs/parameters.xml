@@ -101,4 +101,14 @@
 				isReadOnly="false" 
 				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>
 		
+		<parameter name="initialColPercent" displayName="Initial Collagen Percentage" type="double"
+				defaultValue="3.0" 
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$DoubleConverter"/>
+				
+		<parameter name="scaleStructuralCue" displayName="Scale Structural Cue with Collagen Content" type="boolean"
+				defaultValue="false"
+				isReadOnly="false" 
+				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>
+				
 		</parameters>
