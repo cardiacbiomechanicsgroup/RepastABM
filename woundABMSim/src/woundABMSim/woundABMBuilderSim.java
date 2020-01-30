@@ -13,6 +13,9 @@ public class woundABMBuilderSim implements ContextBuilder<Object>{
 /* Constructor */
 	public Context<Object> build(Context<Object> context) {
 		
+		// Reload static values based off of parameters in CellAgentSim (necessary for proper batch execution)
+		CellAgentSim.InitializeStaticValues();
+		
 		// Pull parameters
 		Parameters p = RunEnvironment.getInstance().getParameters();
 	
