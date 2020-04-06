@@ -36,7 +36,7 @@ public class CellAgentSim {
 	private double apoptosisAge;		// hr
 	private double cellSpeed;			// um/hr	
 	public double angleSelection;		// deg
-	private boolean moveboolean;
+	private int adjCellSpeed;
 	private double migrationDistance;	// um
 	
 	// Weighting factors
@@ -48,7 +48,7 @@ public class CellAgentSim {
 	// Migration
 	private final static double alphaGeometric = woundRadius/2828.0;	// Cryo infarct radius = 2828 um;
 	private final static double alphaInfiltration = woundRadius/500.0; 	// Cryo infarct thickness = 500 um;
-	private final static double cellSpeedMin = alphaInfiltration*1.0;	// um/hr // Note: doesn't need to be defined this way here)
+	private final static double cellSpeedMin = alphaInfiltration*1.0;	// um/hr
 	private final static double cellSpeedMax = alphaInfiltration*10.0;	// um/hr
 
 	// Discretization
@@ -107,7 +107,7 @@ public class CellAgentSim {
 		this.mitosisAge = RandomHelper.nextDoubleFromTo(0, gMitosisTime);
 		this.apoptosisAge = mitosisAge;
 		this.angleSelection = RandomHelper.nextDoubleFromTo(-180, 180);
-		this.moveboolean = true;
+		this.adjCellSpeed = 1;
 		this.migrationDistance = RandomHelper.nextDoubleFromTo(0, gridUnitSize);
 		
 		List<GridPoint> coveredSites = cellCoverage(0, 0);
@@ -115,14 +115,14 @@ public class CellAgentSim {
 	}
 
 	public CellAgentSim(double mitosisTime,	double apoptosisAge, double mitosisAge, double angleSelection, 
-			boolean moveboolean) {
+			int adjCellSpeed) {
 
 		// Assign parameters
 		this.mitosisTime = mitosisTime;
 		this.mitosisAge = mitosisAge;
 		this.apoptosisAge = apoptosisAge;
 		this.angleSelection = angleSelection;
-		this.moveboolean = moveboolean;
+		this.adjCellSpeed = adjCellSpeed;
 		this.migrationDistance = 0;
 		
 		List<GridPoint> coveredSites = cellCoverage(0, 0);
@@ -160,7 +160,7 @@ public class CellAgentSim {
 	/* Primary scheduled methods in order of execution */
 	// Infarction method
 	@ScheduledMethod(start = 0, priority = 3)
- 	public void cellRemoval() { // Note: Make x and y agent variables?
+ 	public void cellRemoval() {
 		
 		// Remove cells in the wound area
 		if (cellRemoval == true) {
@@ -171,18 +171,18 @@ public class CellAgentSim {
 			final double removalDist = (woundRadius/gridUnitSize);
 			final double dist = Math.sqrt(Math.pow((pt.getX()-gridWidth/2), 2)+
 					Math.pow((pt.getY()-gridHeight/2), 2));
-			if (dist <= removalDist) { // Note: removed (double) classifier before removalDist
+			if (dist <= removalDist) {
 				woundabmspace.remove(this);
 			}
 		}
 	}
 
-	// Initialize chemokine-dependent apoptosis, mitosis, and migration time (Note: add to step method) 
-	@ScheduledMethod(start = 0.2, interval = 0.5, priority = 2)
-	public void setChemokineProcess() {  // Note: Make x and y agent variables?
-		final woundABMContextSim woundabmspace = (woundABMContextSim) ContextUtils.getContext(this);
-		final Grid<?> grid = (Grid<?>) woundabmspace.getProjection("Cell Grid");
-		final GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
+	// Agent decision tree
+	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 1)
+	public void step() {
+		final woundABMContextSim woundABMSpace = (woundABMContextSim) ContextUtils.getContext(this);
+		final Grid<?> grid = (Grid<?>) woundABMSpace.getProjection("Cell Grid");
+		final GridValueLayer chemokine = (GridValueLayer) woundABMSpace.getValueLayer("Chemokine");
 		final GridPoint pt = grid.getLocation(this);
 		final double effectiveChemokine = (chemokine.get(pt.getX(), pt.getY())-concMin)/(concMax-concMin);
 
@@ -191,14 +191,6 @@ public class CellAgentSim {
 
 		// Define chemokine dependent migration to speed up wound closure
 		this.cellSpeed = effectiveChemokine*(cellSpeedMax-cellSpeedMin)+cellSpeedMin;
-	}
-
-	// Agent decision tree
-	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 1)
-	public void step() {  // Note: Make x and y agent variables?
-		final woundABMContextSim woundABMSpace = (woundABMContextSim) ContextUtils.getContext(this);
-		final Grid<?> grid = (Grid<?>) woundABMSpace.getProjection("Cell Grid");
-		final GridPoint pt = grid.getLocation(this);
 
 		// Get location
 		final int x = pt.getX();
@@ -214,13 +206,6 @@ public class CellAgentSim {
 			// Update cell orientation
 			this.angleSelection = guidanceCue(woundABMSpace, x, y);
 
-			// Check for migration	// Note:  Move to the end?
-			if (migrationDistance >= gridUnitSize) {
-				final int grids = (int) Math.floor(migrationDistance/gridUnitSize);
-				this.migrationDistance = migrationDistance-gridUnitSize*grids;
-				moveTowards(grid, x, y, grids);
-			}
-
 			// Get grids covered by the cell
 			List<GridPoint> coveredSites = cellCoverage(x, y);
 
@@ -231,8 +216,7 @@ public class CellAgentSim {
 				final int siteX = site.getX();
 				final int siteY = site.getY();
 
-				// Retrieve value layers
-				final GridValueLayer chemokine = (GridValueLayer) woundABMSpace.getValueLayer("Chemokine");
+				// Retrieve structural value layers
 				final ArrayList<GridValueLayer> collagenLayers = (ArrayList<GridValueLayer>)woundABMSpace.GridValueLayerList();
 				final ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>)woundABMSpace.fibrinGridValueLayerList();	
 				
@@ -242,6 +226,13 @@ public class CellAgentSim {
 				}
 				matrixDegradation(siteX, siteY, chemokine, collagenLayers, fibrinLayers, degradationTime);
 				collagenDeposition(siteX, siteY, chemokine, collagenLayers, depositionTime);
+			}
+			
+			// Check for migration
+			if (migrationDistance >= gridUnitSize) {
+				final int grids = (int) Math.floor(migrationDistance/gridUnitSize);
+				this.migrationDistance = migrationDistance-gridUnitSize*grids;
+				moveTowards(grid, x, y, grids);
 			}
 		}
 
@@ -257,7 +248,7 @@ public class CellAgentSim {
 	}
 
 	/* Secondary methods */
-	// Mitosis method (fix get(site)) (move constants to class loading or static method)
+	// Mitosis method
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private boolean mitose(woundABMContextSim woundabmspace, Grid grid, int x, int y) {
 
@@ -273,8 +264,7 @@ public class CellAgentSim {
 			// Add daughter (angle same as mother's)
 			final double dAngle = this.angleSelection;
 			final double dMitosisClock = randomClock();
-			CellAgentSim cellagent = new CellAgentSim(mitosisTime, dMitosisClock, dMitosisClock, dAngle, 
-					true);
+			CellAgentSim cellagent = new CellAgentSim(mitosisTime, dMitosisClock, dMitosisClock, dAngle, 1);
 			woundabmspace.add(cellagent);
 			grid.moveTo(cellagent, xCoor, yCoor);
 			
@@ -286,7 +276,7 @@ public class CellAgentSim {
 		}
 	}
 
-	// Returns an angle based on guidance cues (move cellSpeed Allocation)
+	// Returns an angle based on guidance cues
 	private double guidanceCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Calculate structural guidance cue normalization factors based on maximum values
@@ -379,7 +369,7 @@ public class CellAgentSim {
 		final double rho = RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
 
 		// Select a direction from the probability distribution, exceptions for rho >=0.999 and rho <=0.001
-		double[] binDir360 = new double[72];	// Note: Make static?
+		double[] binDir360 = new double[72];
 		for (int i = 0; i < binNum360; i++) {
 			binDir360[i] = binSize*i-177.5;
 		}
@@ -424,12 +414,12 @@ public class CellAgentSim {
 
 				// Move to new location
 				grid.moveTo(this, desiredX, desiredY);
-				this.moveboolean = true;
+				this.adjCellSpeed = 1;
 				extent = 0;
 
-			}// Abort move and reset migration distance // Note: check on this // Note: do we need moveboolean as a middelman?
+			}// Abort move and reset migration distance
 			else if (extent == 1) {
-				this.moveboolean = false;
+				this.adjCellSpeed = 0;
 				this.migrationDistance = 0;
 			}
 
@@ -472,7 +462,7 @@ public class CellAgentSim {
 		return coveredSites;
 	}
 
-	// Rotate collagen // Note: is Q necessary?
+	// Rotate collagen
 	private void collagenRotation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList) {
 
 		// Calculate collagen fiber rotation constant based on chemokine concentration
@@ -490,11 +480,10 @@ public class CellAgentSim {
 		// Converts angleSelection range of [-180 180] to range of [-90 90]
 		final double radAngle = Math.toRadians(this.angleSelection);
 		final double cellAngle = Math.toDegrees(Math.atan(Math.sin(radAngle)/Math.cos(radAngle)));
-		double fiberBin;// Note: move inside loop
 		for (int j = 0; j < binNum180; j++) {	
 
 			// Get fiber offset from cell angle in radians
-			fiberBin = binSize*j-87.5;
+			double fiberBin = binSize*j-87.5;
 			double newAngle = 360;
 			final double fiberOffset = Math.toRadians(cellAngle-fiberBin);
 			final double tanFiberOff = Math.tan(fiberOffset);
@@ -525,7 +514,7 @@ public class CellAgentSim {
 			
 			// Rotate collagen
 			int rotIndex = 99;
-			final double rotFrac = (newAngle-rotBin)/5;	// Note: is 5 binSize?
+			final double rotFrac = (newAngle-rotBin)/binSize;
 			double colKept;
 			double colRotated;
 			if (rotFrac >= 0) { //kept
@@ -581,7 +570,7 @@ public class CellAgentSim {
 		}
 	}
 
-	// Aligned collagen deposition method (MATLAB deltaCol is divided by number of local collagen fibers) (alignedDepFrac is not in MATLAB model)
+	// Aligned collagen deposition method
 	private void collagenDeposition(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, double depositionInterval) {
 
 		// Calculate collagen fiber generation rate based on chemokine concentration
@@ -598,7 +587,7 @@ public class CellAgentSim {
 				depoAngle = cellAngle-180.0;
 			} else {
 				depoAngle = cellAngle;
-			}// Note: same function as above depoAngle = Math.toDegrees(Math.atan(Math.sin(Math.toRadians(depoAngle))/Math.cos(Math.toRadians(depoAngle))));
+			}
 			
 		} else {
 			depoAngle = RandomHelper.nextDoubleFromTo(-90, 90);
@@ -621,7 +610,7 @@ public class CellAgentSim {
 	}
 
 	/* Tertiary methods */
-	// Returns a vector of chemokine cues // Note: should this be it's own method?
+	// Returns a vector of chemokine cues
 	private double[] getChemoCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Load chemokine cue value layers
@@ -637,7 +626,7 @@ public class CellAgentSim {
 		return new double[] {CMabm, CXabm, CYabm};
 	}
 
-	// Returns a vector of strain cues // Note: should this be it's own method?
+	// Returns a vector of strain cues
 	private double[] getStrainCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Load strain cue value layers
@@ -654,9 +643,9 @@ public class CellAgentSim {
 	}
 
 	// Returns a vector of structural cues from collagen and fibrin content
-	private double[] getColFiberCue(woundABMContextSim woundabmspace, int x, int y) {	// Note: get cell coverage in step method and deliver to this method
+	private double[] getColFiberCue(woundABMContextSim woundabmspace, int x, int y) {
 
-		// Get grids covered by the cell // Note: get cellCoverage in step method and supply to other methods
+		// Get grids covered by the cell
 		final List<GridPoint> coveredSites = cellCoverage(x, y);
 
 		// Get grid value layers
@@ -695,15 +684,7 @@ public class CellAgentSim {
 	// Returns the direction and magnitude of cell persistence
 	private double[] getPersistence(woundABMContextSim woundabmspace, int x, int y) {
 
-		// Set adjacent cell speed based on whether the cell is going to migrate // Note: remove moveboolean as middleman
-		double adjCellSpeed;
-		if (!moveboolean) {
-			adjCellSpeed = 0;
-		} else {
-			adjCellSpeed = 1.0;
-		}
-
-		// Calculate cell direction magnitude um/hr // Note: retrieve chemokine in step method and supply to other methods
+		// Calculate cell direction magnitude um/hr
 		final GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
 		final double PM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
 				(cellSpeedMax-cellSpeedMin))+cellSpeedMin;
@@ -713,7 +694,7 @@ public class CellAgentSim {
 		return new double[] {PM, PX, PY};
 	}
 
-	// Returns a set of angles (slow?)
+	// Returns a set of angles
 	private Double[] getAngleSet(double theta, double rho) {
 
 		// Get probability distribution
@@ -782,7 +763,7 @@ public class CellAgentSim {
 		// Calculate probability function of WND
 		double[] binProb = new double[72];
 		for (int i = 0; i < binNum360; i++) {
-			binProb[i] = cumProb[5*(i+1)]-cumProb[5*i]; // Note: is 5 the binSize?
+			binProb[i] = cumProb[binSize*(i+1)]-cumProb[binSize*i];
 		}
 		
 		return binProb;
@@ -791,7 +772,7 @@ public class CellAgentSim {
 	// Returns a list of sites which are available for a potential daughter cell
 	private List<GridPoint> getMigrationSite(Grid<?> grid, int x, int y, int extent, double angle) {
 
-		final int[] angleWindow = new int[] {45,30,18,15,13,11,10,9,8,7}; // Note: make final static
+		final int[] angleWindow = new int[] {45,30,18,15,13,11,10,9,8,7};
 
 		double smallestAngle = 360;
 		int siteX = -1;
@@ -821,7 +802,7 @@ public class CellAgentSim {
 					final double siteAngleDiff = Math.abs(siteAngle-angle);
 					if (siteAngleDiff <= angleWindow[extent-1] && siteAngleDiff <= smallestAngle) {
 
-						// Wrapped space	// Note: move to method
+						// Wrapped space
 						if (xCoor < 0) {
 							xCoor = xCoor+gridWidth;
 						} else if (xCoor >= gridWidth) {
@@ -842,7 +823,7 @@ public class CellAgentSim {
 			}
 		}
 
-		// Check if and appropriate site has been identified // Note: does nothing
+		// Check if and appropriate site has been identified
 		if (siteX == -1 || siteY == -1) {
 
 		}
