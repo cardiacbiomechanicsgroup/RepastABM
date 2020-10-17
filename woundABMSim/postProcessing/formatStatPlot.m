@@ -11,7 +11,6 @@ function [] = formatStatPlot(figureNum, legendEntries)
 % Created: 2019/06/21
 
 figure(figureNum); hold on;
-sgtitle('WoundABM: collagen and cell orientation time course');
 
 subplot(2,3,1); hold on;
 ylabel('Collagen MVL', 'FontName', 'Arial', 'FontSize', 14);

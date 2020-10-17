@@ -26,7 +26,6 @@ public class CellAgentSim {
 	private static int gridDiameter;					// Cell diameter in grids
 	private static int gridRadius;						// Cell radius in grids
 	private static int cellGridArea;					// Cell area in grids
-	private static boolean cellRemoval;
 	private final static double cellRadius = 5.0;		// um
 	private final static double woundRadius = 113.0;	// um
 	
@@ -36,7 +35,7 @@ public class CellAgentSim {
 	private double apoptosisAge;		// hr
 	private double cellSpeed;			// um/hr	
 	public double angleSelection;		// deg
-	private int adjCellSpeed;
+	private int pastMigration;
 	private double migrationDistance;	// um
 	
 	// Weighting factors
@@ -59,7 +58,6 @@ public class CellAgentSim {
 	// Collagen
 	private static boolean colRotation;
 	private static String depoType;
-	private final static double fiberDensity = 178.25;		// fibers/um^2/7um thickness from cryoinfarct data
 	private final static double kColRotMax = 3.0;			// deg/hr
 	private final static double kColRotMin = 0.3;			// deg/hr
 	private final static double kColGenMax = 17.9874;		// fiber/cell/hr
@@ -78,6 +76,7 @@ public class CellAgentSim {
 	private final static double pMin = 0.25;     // min persistence time (hr)
 	private final static double pNoCue = 1.2;    // persistence time in the absence of external directional cues
 	private static double rhoTuning;
+	private static double collisionGuidance;
 
 	// Chemokine
 	private final static double concMin = 0.0;
@@ -94,10 +93,12 @@ public class CellAgentSim {
 	private final static double eij = 0;
 	
 	// Guidance cue normalization factors based on maximum values
-	private final static double Mc = 0.5*cellRadius*maxConcGrad;
-	private final static double Mm = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Ms = 0.0125	 
+	private final static double Mc = 0.5*cellRadius*maxConcGrad; // Mc = 0.0712
+	private final static double Mm = Math.sqrt(Math.pow(eii, 2)-2*eii*ejj+Math.pow(ejj, 2)+4*Math.pow(eij,2))/4; // Mm = 0.0125	 
 	private final static double Mp = cellSpeedMax;
 	private static boolean scaleStructuralCue;
+	
+	//private static boolean updatedCueIntegration;
 
 	/* Constructors */
 	public CellAgentSim() {
@@ -107,7 +108,7 @@ public class CellAgentSim {
 		this.mitosisAge = RandomHelper.nextDoubleFromTo(0, gMitosisTime);
 		this.apoptosisAge = mitosisAge;
 		this.angleSelection = RandomHelper.nextDoubleFromTo(-180, 180);
-		this.adjCellSpeed = 1;
+		this.pastMigration = 1;
 		this.migrationDistance = RandomHelper.nextDoubleFromTo(0, gridUnitSize);
 		
 		List<GridPoint> coveredSites = cellCoverage(0, 0);
@@ -115,14 +116,14 @@ public class CellAgentSim {
 	}
 
 	public CellAgentSim(double mitosisTime,	double apoptosisAge, double mitosisAge, double angleSelection, 
-			int adjCellSpeed) {
+			int pastMigration) {
 
 		// Assign parameters
 		this.mitosisTime = mitosisTime;
 		this.mitosisAge = mitosisAge;
 		this.apoptosisAge = apoptosisAge;
 		this.angleSelection = angleSelection;
-		this.adjCellSpeed = adjCellSpeed;
+		this.pastMigration = pastMigration;
 		this.migrationDistance = 0;
 		
 		List<GridPoint> coveredSites = cellCoverage(0, 0);
@@ -140,8 +141,9 @@ public class CellAgentSim {
 		Ws = (Double) p.getValue("Ws"); 							// Structural cue weight
 		Wm = (Double) p.getValue("Wm");								// Mechanics cue weight
 		Wc = (Double) p.getValue("Wc");								// Chemokine cue weight
+		collisionGuidance = (Double) p.getValue("collisionGuidance");
 		scaleStructuralCue = (Boolean) p.getValue("scaleStructuralCue");
-		cellRemoval = (Boolean) p.getValue("cellRemoval");
+		//updatedCueIntegration = (Boolean) p.getValue("updatedCueIntegration");
 		colRotation = (Boolean) p.getValue("colRotation");
 		depoType = (String) p.getValue("depoType"); 				// "Aligned" or "Random"
 		gMitosisTime = (Double) p.getValue("mitosisTime");			// hr
@@ -161,22 +163,20 @@ public class CellAgentSim {
 	// Infarction method
 	@ScheduledMethod(start = 0, priority = 3)
  	public void cellRemoval() {
-		
-		// Remove cells in the wound area
-		if (cellRemoval == true) {
-			final woundABMContextSim woundabmspace = (woundABMContextSim) ContextUtils.getContext(this);
-			final Grid<?> grid = (Grid<?>) woundabmspace.getProjection("Cell Grid");
-			final GridPoint pt = grid.getLocation(this);	
 
-			final double removalDist = (woundRadius/gridUnitSize);
-			final double dist = Math.sqrt(Math.pow((pt.getX()-gridWidth/2), 2)+
-					Math.pow((pt.getY()-gridHeight/2), 2));
-			if (dist <= removalDist) {
-				woundabmspace.remove(this);
-			}
+		// Remove cells in the wound area
+		final woundABMContextSim woundabmspace = (woundABMContextSim) ContextUtils.getContext(this);
+		final Grid<?> grid = (Grid<?>) woundabmspace.getProjection("Cell Grid");
+		final GridPoint pt = grid.getLocation(this);	
+
+		final double removalDist = (woundRadius/gridUnitSize);
+		final double dist = Math.sqrt(Math.pow((pt.getX()-gridWidth/2), 2)+
+				Math.pow((pt.getY()-gridHeight/2), 2));
+		if (dist <= removalDist) {
+			woundabmspace.remove(this);
 		}
 	}
-
+	
 	// Agent decision tree
 	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 1)
 	public void step() {
@@ -204,8 +204,19 @@ public class CellAgentSim {
 		} else {
 
 			// Update cell orientation
-			this.angleSelection = guidanceCue(woundABMSpace, x, y);
-
+			/*if (updatedCueIntegration == true) {
+				guidanceCue2(woundABMSpace, x, y);
+			} else {*/
+				guidanceCue(woundABMSpace, x, y);
+			//}
+						
+			// Check for migration
+			if (migrationDistance >= gridUnitSize) {
+				final int grids = (int) Math.floor(migrationDistance/gridUnitSize);
+				this.migrationDistance = migrationDistance-gridUnitSize*grids;
+				migrate(grid, x, y, grids);
+			}
+			
 			// Get grids covered by the cell
 			List<GridPoint> coveredSites = cellCoverage(x, y);
 
@@ -224,15 +235,8 @@ public class CellAgentSim {
 				if (colRotation == true) {
 					collagenRotation(siteX, siteY, chemokine, collagenLayers);
 				}
-				matrixDegradation(siteX, siteY, chemokine, collagenLayers, fibrinLayers, degradationTime);
 				collagenDeposition(siteX, siteY, chemokine, collagenLayers, depositionTime);
-			}
-			
-			// Check for migration
-			if (migrationDistance >= gridUnitSize) {
-				final int grids = (int) Math.floor(migrationDistance/gridUnitSize);
-				this.migrationDistance = migrationDistance-gridUnitSize*grids;
-				moveTowards(grid, x, y, grids);
+				matrixDegradation(siteX, siteY, chemokine, collagenLayers, fibrinLayers, degradationTime);
 			}
 		}
 
@@ -276,21 +280,24 @@ public class CellAgentSim {
 		}
 	}
 
-	// Returns an angle based on guidance cues
-	private double guidanceCue(woundABMContextSim woundabmspace, int x, int y) {
+	// Returns an angle based on guidance cues (J Physiol 2012)
+	private void guidanceCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Calculate structural guidance cue normalization factors based on maximum values
 		double Ms = 1;
 		if (scaleStructuralCue == true) {
 			final GridValueLayer colTotal = (GridValueLayer) woundabmspace.getValueLayer("Collagen Sum");
+			final GridValueLayer fibTotal = (GridValueLayer) woundabmspace.getValueLayer("Fibrin Sum");
 			final List<GridPoint> coveredSites = cellCoverage(x, y);
 			double colSum = 0;
+			double fibSum = 0;
 			for (GridPoint site : coveredSites ) {
 				final int siteX = site.getX();
 				final int siteY = site.getY();
 				colSum = colSum+colTotal.get(siteX, siteY);
+				fibSum = fibSum+fibTotal.get(siteX, siteY);
 			}
-			Ms = (colSum/(cellGridArea*fiberDensity))/0.3;
+			Ms = colSum/(kColGenMax/kColDegMax);
 		}
 
 		// Acquire chemokine, strain, fiber, and persistence cues
@@ -305,16 +312,22 @@ public class CellAgentSim {
 		final double[] fiberCue = getColFiberCue(woundabmspace, x, y);
 		double SM = fiberCue[0]; 
 		double SX = fiberCue[1];
-		double SY = fiberCue[2];	
+		double SY = fiberCue[2];
 		final double[] persistence = getPersistence(woundabmspace, x, y);
 		double PM = persistence[0];
 		double PX = persistence[1]; 
 		double PY = persistence[2];
-		
+
 		// Calculate guidance cues strength using maximum value normalization and weighting factors
 		final double Sc = (Wc*CM)/Mc;
 		final double Sm = (Wm*MM)/Mm;
-		final double Ss = (Ws*SM)/Ms;
+		double Ss;
+		if (Ms == 0) {
+			Ss = 0;
+		} else {
+			Ss = (Ws*SM)/Ms;
+		}
+		
 		final double Sp = (Wp*PM)/Mp;
 
 		// Calculate the resultant guidance cues from the weighted guidance cues unit vectors
@@ -341,7 +354,7 @@ public class CellAgentSim {
 		RX[3] = CX+PX-SX-MX;
 		RY[3] = CY+PY-SY-MY;
 		RM[3] = Math.sqrt(Math.pow(RX[3], 2)+Math.pow(RY[3], 2));
-		
+
 		// Find maximum resultant magnitude/s
 		double maxRM = 0;
 		ArrayList<Integer> RMlist = new ArrayList<Integer>();
@@ -363,7 +376,7 @@ public class CellAgentSim {
 			RMlist.add(maxResultantIndex);
 		}
 		int maxRMindex = RMlist.get(RandomHelper.nextIntFromTo(0,(RMlist.size()-1)));
-		
+
 		// Calculate the resultant angle "theta" and normalized resultant magnitude "rho"
 		final double theta = Math.atan2(RY[maxRMindex], RX[maxRMindex]);
 		final double rho = RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
@@ -387,23 +400,279 @@ public class CellAgentSim {
 				guidedAngle = binDir360[RandomHelper.nextIntFromTo(0,binDir360.length-1)];
 			}
 		}
-		
-		return guidedAngle;
+
+		this.angleSelection = guidedAngle;
 	}
+
+	// Returns an angle based on guidance cues (new version where persistance is not a cue)
+	/*private void guidanceCue2(woundABMContextSim woundabmspace, int x, int y) {
+
+		// Calculate structural guidance cue normalization factors based on maximum values
+		double Ms = 1;
+		if (scaleStructuralCue == true) {
+			Ms = kColGenMax/kColDegMax;
+		}
+
+		// Acquire chemokine, strain, and fiber cues
+		final double[] chemoCue = getChemoCue(woundabmspace, x, y);
+		double CM = chemoCue[0]; 
+		double CX = chemoCue[1];
+		double CY = chemoCue[2];
+		final double[] strainCue = getStrainCue(woundabmspace, x, y); 
+		double MM = strainCue[0]; 
+		double MX = strainCue[1];
+		double MY = strainCue[2];
+		final double[] fiberCue = getColFiberCue2(woundabmspace, x, y);
+		double SM = fiberCue[0]; 
+		double SX = fiberCue[1];
+		double SY = fiberCue[2];
+		
+		// Note: alternate integration below
+		Ms = kColGenMax/kColDegMax;
+		
+		// Retrieve, correct, and convert cell angle
+		double angle = this.angleSelection;
+		if (angle < 0) {
+			angle = angle+360.0;
+		}
+		double angleRad = Math.toRadians(angle);
+
+		// Build persistence component
+		final Random r = new Random();
+		double Xpi = Math.cos(angleRad-0.1+0.2*r.nextGaussian()); // Note
+		double Ypi = Math.sin(angleRad-0.1+0.2*r.nextGaussian());
+
+		// Build cue components
+		double Xci = CX;
+		double Yci = CY;
+		double Xmi = MX;
+		double Ymi = MY;
+		double Xsi = SX;
+		double Ysi = SY;
+		
+		// Determine mechanical and structural cue direction
+		double[] RX = new double[4];
+		double[] RY = new double[4];
+		double[] RM = new double[4];
+		RX[0] = CX+SX+MX;
+		RY[0] = CY+SY+MY;
+		RM[0] = Math.sqrt(Math.pow(RX[0], 2)+Math.pow(RY[0], 2));
+		RX[1] = CX-SX+MX;
+		RY[1] = CY-SY+MY;
+		RM[1] = Math.sqrt(Math.pow(RX[1], 2)+Math.pow(RY[1], 2));
+		RX[2] = CX+SX-MX;
+		RY[2] = CY+SY-MY;
+		RM[2] = Math.sqrt(Math.pow(RX[2], 2)+Math.pow(RY[2], 2));
+		RX[3] = CX-SX-MX;
+		RY[3] = CY-SY-MY;
+		RM[3] = Math.sqrt(Math.pow(RX[3], 2)+Math.pow(RY[3], 2));
+
+		// Find maximum resultant magnitude/s
+		double maxRM = 0;
+		ArrayList<Integer> RMlist = new ArrayList<Integer>();
+		int maxResultantIndex = 99;
+		for (int i = 0; i < 4; i++) {
+			if (RM[i] > maxRM) {
+				maxRM = RM[i];
+				maxResultantIndex = i;
+			} else if (RM[i] == maxRM) {
+				if (RMlist.size() < 1) {
+					RMlist.add(maxResultantIndex);
+				}
+				RMlist.add(i);
+			}
+		}
+
+		// If two resultant magnitudes are equal, pick randomly between them
+		if (RMlist.size() < 1) {
+			RMlist.add(maxResultantIndex);
+		}
+		int maxRMindex = RMlist.get(RandomHelper.nextIntFromTo(0,(RMlist.size()-1)));
+		if (maxRMindex == 1) {
+			Xmi = MX;
+			Ymi = MY;
+			Xsi = -SX;
+			Ysi = -SY;
+		} else if (maxRMindex == 2) {
+			Xmi = -MX;
+			Ymi = -MY;
+			Xsi = SX;
+			Ysi = SY;
+		} else if (maxRMindex == 3) {
+			Xmi = -MX;
+			Ymi = -MY;
+			Xsi = -SX;
+			Ysi = -SY;
+		}
+		
+		// Calculate new cell angle
+		double w2 = Wc*CM/Mc;
+		double w3 = Wm*MM/Mm;
+		double w4 = Ws*SM/Ms;
+		double w1 = (1-(w2+w3+w4));
+		double Xi = (w1*Xpi+w2*Xci+w3*Xmi+w4*Xsi);
+		double Yi = (w1*Ypi+w2*Yci+w3*Ymi+w4*Ysi);
+		double thetai = Math.atan2(Yi,Xi);
+		this.angleSelection = Math.toDegrees(thetai);
+
+		// Note: new integration
+		/* // Calculate the resultant guidance cues from the weighted guidance cues unit vectors
+		double[] RX = new double[4];
+		double[] RY = new double[4];
+		double[] RM = new double[4];
+		CX = Sc*CX;
+		CY = Sc*CY;
+		MX = Sm*MX;
+		MY = Sm*MY;
+		SX = Ss*SX;
+		SY = Ss*SY;
+		RX[0] = CX+SX+MX;
+		RY[0] = CY+SY+MY;
+		RM[0] = Math.sqrt(Math.pow(RX[0], 2)+Math.pow(RY[0], 2));
+		RX[1] = CX-SX+MX;
+		RY[1] = CY-SY+MY;
+		RM[1] = Math.sqrt(Math.pow(RX[1], 2)+Math.pow(RY[1], 2));
+		RX[2] = CX+SX-MX;
+		RY[2] = CY+SY-MY;
+		RM[2] = Math.sqrt(Math.pow(RX[2], 2)+Math.pow(RY[2], 2));
+		RX[3] = CX-SX-MX;
+		RY[3] = CY-SY-MY;
+		RM[3] = Math.sqrt(Math.pow(RX[3], 2)+Math.pow(RY[3], 2));
+
+		// Find maximum resultant magnitude/s
+		double maxRM = 0;
+		ArrayList<Integer> RMlist = new ArrayList<Integer>();
+		int maxResultantIndex = 99;
+		for (int i = 0; i < 4; i++) {
+			if (RM[i] > maxRM) {
+				maxRM = RM[i];
+				maxResultantIndex = i;
+			} else if (RM[i] == maxRM) {
+				if (RMlist.size() < 1) {
+					RMlist.add(maxResultantIndex);
+				}
+				RMlist.add(i);
+			}
+		}
+
+		// If two resultant magnitudes are equal, pick randomly between them
+		if (RMlist.size() < 1) {
+			RMlist.add(maxResultantIndex);
+		}
+		int maxRMindex = RMlist.get(RandomHelper.nextIntFromTo(0,(RMlist.size()-1)));
+
+		// Calculate the resultant angle "theta" and normalized resultant magnitude "rho"
+		final double theta = Math.atan2(RY[maxRMindex], RX[maxRMindex]);
+		final double rho = RM[maxRMindex]/(rhoTuning+Ss+Sm+Sc+Sp);
+		
+		// Retrieve, correct, and convert cell angle
+		double angle = this.angleSelection;
+		if (angle < 0) {
+			angle = angle+360.0;
+		}
+		double angleRad = Math.toRadians(angle);
+		
+		// Build persistence component
+		final Random r = new Random();
+		double Xpi = Math.cos(angleRad-0.2+0.4*r.nextGaussian());
+		double Ypi = Math.sin(angleRad-0.2+0.4*r.nextGaussian());
+		
+		// Build cue component
+		double Xci = Math.cos(theta);
+		double Yci = Math.sin(theta);
+		
+		// Calculate new cell angle
+		double w1 = (1-0.1*rho);
+		double w2 = 0.1*rho;
+		double Xi = (w1*Xpi+w2*Xci);
+		double Yi = (w1*Ypi+w2*Yci);
+		double thetai = Math.atan2(Yi,Xi);
+		this.angleSelection = Math.toDegrees(thetai);
+	}*/
 
 	// Migration method
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void moveTowards(Grid grid, int x, int y, int extent) {
+	private void migrate(Grid grid, int x, int y, int extent) {
 
+		// Retrieve and correct cell angle
+		double angle = this.angleSelection;
+		if (angle < 0) {
+			angle = angle+360.0;
+		}
+		
 		// Search for a migration site starting from farthest to nearest
+		final int[] angleWindow = new int[] {45,30,18,15,13,11,10,9,8,7};
 		while (extent > 0) {
-
+			
 			// Get list of sites within extent and the angle window that are available for migration
-			double angle = this.angleSelection;
-			if (angle < 0) {
-				angle = angle+360.0;
+			// Note: final List<GridPoint> emptySites = getMigrationSite(grid, x, y, extent, angle);
+			double smallestAngle = 360;
+			int siteX = -1;
+			int siteY = -1;
+
+			// Iterate through potential sites
+			List<GridPoint> emptySites = new ArrayList<GridPoint>();
+			for (int i = -extent; i <= extent; i++) {
+				int xCoor = x+i;
+				for (int j = -extent; j <= extent; j++) {
+					int yCoor = y+j;
+
+					// Check if the site is within the radial distance
+					final double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2));
+					if ((dist <= extent && dist > extent-1) || extent == 1) {
+
+						// Correct out of range site angles
+						double siteAngle = Math.toDegrees(Math.atan2(yCoor-y, xCoor-x));
+						if (siteAngle < 0) {
+							siteAngle = siteAngle+360.0;
+						}
+						if (angle > 270 && siteAngle == 0) {
+							siteAngle = 360;
+						}
+
+						// Check if the site is the closest site within the angle window
+						final double siteAngleDiff = Math.abs(siteAngle-angle);
+						if (siteAngleDiff <= angleWindow[extent-1] && siteAngleDiff <= smallestAngle) {
+
+							// Wrapped space
+							if (xCoor < 0) {
+								xCoor = xCoor+gridWidth;
+							} else if (xCoor >= gridWidth) {
+								xCoor = xCoor-gridWidth;
+							}
+							if (yCoor < 0) {
+								yCoor = yCoor+gridHeight;
+							} else if (yCoor >= gridHeight) {
+								yCoor = yCoor-gridHeight;
+							}
+
+							// Record site
+							smallestAngle = siteAngleDiff;
+							siteX = xCoor;
+							siteY = yCoor;
+						}
+					}
+				}
 			}
-			final List<GridPoint> emptySites = getMigrationSite(grid, x, y, extent, angle);
+
+			// Check if an appropriate site has been identified
+			if (siteX == -1 || siteY == -1) {
+
+			// Check if the appropriate site's surrounding area is free
+			} else if (!grid.getObjectsAt(siteX, siteY).iterator().hasNext()) {
+				
+				if (extent < gridDiameter) {
+					if (findNumNeighbor(grid, siteX, siteY) <= 1) {
+						emptySites.add(new GridPoint(siteX, siteY));
+					}
+				} else {
+					if (findNumNeighbor(grid, siteX, siteY) < 1) {
+						emptySites.add(new GridPoint(siteX, siteY));	
+					}
+				}
+			}
+
+
 			if (!emptySites.isEmpty()) {
 
 				// Select a random migration site from the list of those available to move to
@@ -414,13 +683,42 @@ public class CellAgentSim {
 
 				// Move to new location
 				grid.moveTo(this, desiredX, desiredY);
-				this.adjCellSpeed = 1;
+				this.pastMigration = 1;
 				extent = 0;
 
-			}// Abort move and reset migration distance
-			else if (extent == 1) {
-				this.adjCellSpeed = 0;
+			// Abort move if no sites are free
+			} else if (extent == 1) {
+				this.pastMigration = 1; // Note should be = 0, changes for thesis test
 				this.migrationDistance = 0;
+
+				// Implement collision guidance
+				double angleRad = Math.toRadians(angle);
+				List<Object> neighbors = findNeighbors(grid, siteX, siteY);
+				if (neighbors.size() >= 1) {	// Note: count collisions
+					woundABMContextSim.addCollision();
+				}
+				if (collisionGuidance > 0 && collisionGuidance <= 1) {	
+					double Xci = 0;
+					double Yci = 0;
+					for (Object obj:neighbors) {
+						double thetaj = Math.toRadians(((CellAgentSim)obj).angleSelection);
+						if (Math.abs(thetaj - angleRad)%Math.PI < Math.PI/2) {
+							
+						} else {
+							thetaj = thetaj + Math.PI/2;
+						}
+						Xci = Xci + Math.cos(thetaj);
+						Yci = Yci + Math.sin(thetaj);
+					}
+					double Xpi = Math.cos(angleRad);
+					double Ypi = Math.sin(angleRad);
+					double w1 = (1-collisionGuidance);
+					double w2 = collisionGuidance;
+					double Xi = (w1*Xpi+w2*Xci)/(w1+w2);
+					double Yi = (w1*Ypi+w2*Yci)/(w1+w2);
+					double thetai = Math.atan2(Yi,Xi);
+					this.angleSelection = Math.toDegrees(thetai);
+				}
 			}
 
 			// Reduce search distance
@@ -548,7 +846,7 @@ public class CellAgentSim {
 	private void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> fibringridValueLayerList, double degrationInterval) {
 
 		// Calculate fiber degradation constants with respect to chemokine concentration
-		final double kColDeg = ((chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColDegMax-kColDegMin)+kColDegMin);
+		final double kColDeg = (chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColDegMax-kColDegMin)+kColDegMin;
 		final double kFibDeg = kColDeg;
 
 		// Degrade fibers uniformly across all bins
@@ -574,7 +872,7 @@ public class CellAgentSim {
 	private void collagenDeposition(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, double depositionInterval) {
 
 		// Calculate collagen fiber generation rate based on chemokine concentration
-		final double kColGen = ((chemokine.get(x, y))-concMin)/(concMax-concMin)*(kColGenMax-kColGenMin)+kColGenMin;
+		final double kColGen = (chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColGenMax-kColGenMin)+kColGenMin;
 
 		// Set collagen deposition angle based on deposition type
 		double depoAngle;
@@ -669,28 +967,94 @@ public class CellAgentSim {
 				fiberSum = fiberSum+fiberDist;
 			}
 		}
-		final double meanFiberSumX = fiberSumX/fiberSum;
-		final double meanFiberSumY = fiberSumY/fiberSum;
-		final double meanFiberAngle = 0.5*Math.atan2(meanFiberSumY, meanFiberSumX);
 		
-		// Set structural cue magnitude, x, and y components
-		final double SM = Math.sqrt(Math.pow(meanFiberSumX, 2)+Math.pow(meanFiberSumY, 2));
-		final double SX = Math.cos(meanFiberAngle);
-		final double SY = Math.sin(meanFiberAngle);
+		double SM;
+		double SX;
+		double SY;
+		double meanFiberAngle;
+		
+		if (fiberSum==0) {
+			SM = 0;
+			SX = 0;
+			SY = 0;
+			meanFiberAngle = 0;
+			
+		} else {
+			final double meanFiberSumX = fiberSumX/fiberSum;
+			final double meanFiberSumY = fiberSumY/fiberSum;
+			meanFiberAngle = 0.5*Math.atan2(meanFiberSumY, meanFiberSumX);
+
+			// Set structural cue magnitude, x, and y components
+			SM = Math.sqrt(Math.pow(meanFiberSumX, 2)+Math.pow(meanFiberSumY, 2));
+			SX = Math.cos(meanFiberAngle);
+			SY = Math.sin(meanFiberAngle);
+		}
 
 		return new double[] {SM, SX, SY, meanFiberAngle};
 	}
+	
+	/*private double[] getColFiberCue2(woundABMContextSim woundabmspace, int x, int y) {
 
+		// Get grids covered by the cell
+		final List<GridPoint> coveredSites = cellCoverage(x, y);
+
+		// Get grid value layers
+		final ArrayList<GridValueLayer> collagenLayers= (ArrayList<GridValueLayer>)woundabmspace.GridValueLayerList();
+
+		// Calculate structural cue magnitude, x, and y components
+		double fiberDist = 0;
+		double fiberSumX = 0;
+		double fiberSumY = 0;
+		double fiberSum = 0;
+		double fiberAngle;
+		for (GridPoint site : coveredSites) {	// Iterate through covered grids
+			final int xCoor = site.getX();
+			final int yCoor = site.getY();
+			for (int i = 0; i < binNum180; i++) {	// Iterate through fiber bins
+				fiberAngle = Math.toRadians(2*(binSize*i-87.5));
+				fiberDist = collagenLayers.get(i).get(xCoor, yCoor);
+				fiberSumX = fiberSumX+fiberDist*Math.cos(fiberAngle);
+				fiberSumY = fiberSumY+fiberDist*Math.sin(fiberAngle);
+				fiberSum = fiberSum+fiberDist;
+			}
+		}
+		
+		double SM;
+		double SX;
+		double SY;
+		double meanFiberAngle;
+		
+		if (fiberSum==0) {
+			SM = 0;
+			SX = 0;
+			SY = 0;
+			meanFiberAngle = 0;
+			
+		} else {
+			// Note: alternate cue integration stuff below
+			final double meanFiberSumX = fiberSumX;
+			final double meanFiberSumY = fiberSumY;
+			meanFiberAngle = 0.5*Math.atan2(meanFiberSumY, meanFiberSumX);
+
+			// Set structural cue magnitude, x, and y components
+			SM = fiberSum;
+			SX = Math.cos(meanFiberAngle);
+			SY = Math.sin(meanFiberAngle);
+		}
+
+		return new double[] {SM, SX, SY, meanFiberAngle};
+	}*/
+	
 	// Returns the direction and magnitude of cell persistence
 	private double[] getPersistence(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Calculate cell direction magnitude um/hr
 		final GridValueLayer chemokine = (GridValueLayer) woundabmspace.getValueLayer("Chemokine");
-		final double PM = adjCellSpeed*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
+		final double PM = pastMigration*((chemokine.get(x, y)-concMin)/(concMax-concMin)*
 				(cellSpeedMax-cellSpeedMin))+cellSpeedMin;
 		final double PX = Math.cos(Math.toRadians(this.angleSelection));
 		final double PY = Math.sin(Math.toRadians(this.angleSelection));
-
+		
 		return new double[] {PM, PX, PY};
 	}
 
@@ -769,7 +1133,7 @@ public class CellAgentSim {
 		return binProb;
 	}
 
-	// Returns a list of sites which are available for a potential daughter cell
+	// Note: // Returns a list of sites which are available to move to
 	private List<GridPoint> getMigrationSite(Grid<?> grid, int x, int y, int extent, double angle) {
 
 		final int[] angleWindow = new int[] {45,30,18,15,13,11,10,9,8,7};
@@ -891,6 +1255,45 @@ public class CellAgentSim {
 
 		Collections.shuffle(emptySites);	
 		return emptySites;
+	}
+
+	// Returns a list of agents in the exclusion area of a grid point
+	public List<Object> findNeighbors(Grid<?> grid, int x, int y) {
+
+		// Iterate through neighboring sites
+		List<Object> neighbors = new ArrayList<Object>();
+		for (int i = -gridDiameter; i <= gridDiameter; i++) {
+			int xCoor = x+i;
+			for (int j = -gridDiameter; j <= gridDiameter; j++) {
+				int yCoor = y+j;
+
+				// Check if the site is within the radial distance
+				final double dist = Math.sqrt(Math.pow(xCoor-x,2)+Math.pow(yCoor-y,2));
+				if (dist < gridDiameter) {
+
+					// Wrapped space
+					if (xCoor < 0) {
+						xCoor = xCoor+gridWidth;
+					} else if (xCoor >= gridWidth) {
+						xCoor = xCoor-gridWidth;
+					}
+					if (yCoor < 0) {
+						yCoor = yCoor+gridHeight;
+					} else if (yCoor >= gridHeight) {
+						yCoor = yCoor-gridHeight;
+					}
+
+					// Check if site is occupied
+					for (Object obj:grid.getObjectsAt(xCoor, yCoor)) {
+						if (obj instanceof CellAgentSim && !obj.equals(this)) {
+						neighbors.add(obj);
+						}
+					}
+				}
+			}
+		}
+
+		return neighbors;
 	}
 
 	// Returns the number of agents in the exclusion area of a grid point
