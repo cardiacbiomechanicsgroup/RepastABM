@@ -40,8 +40,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private double gApoptosisTime = (Double) p.getValue("apoptosisTime");
 	private double gDepositionTime = (Double) p.getValue("depositionTime");
 	private double gDegradationTime = (Double) p.getValue("degradationTime");
-	private boolean cellRemoval = (Boolean) p.getValue("cellRemoval");
 	private boolean colRotation = (Boolean) p.getValue("colRotation");
+	private double collisionGuidance = (Double) p.getValue("collisionGuidance");
+	public static int collisionCount;			// cells
 	
 	// Geometry
 	double sampleWidth = (Double) p.getValue("sampleWidth");			// um
@@ -61,9 +62,12 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
 	private int binSize = 5;									// degrees
-	private String initialFiberDist = (String) p.getValue("initialFiberDist");	// "Circumferential" "Longitudinal" or "Uniform"
+	private String initialColDist = (String) p.getValue("initialColDist");	// "Circumferential" "Longitudinal" or "Uniform"
+	private String initialFibDist = (String) p.getValue("initialFibDist");	// "Circumferential" "Longitudinal" or "Uniform"
 	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
-	private double scalePercent = (double) p.getValue("initialColPercent")/3.0;		// 3% normally
+	private boolean includeWoundCollagen = (Boolean) p.getValue("includeWoundCollagen");
+	private double initialColPercent = (double) p.getValue("initialColPercent");	// 3% normally
+	private double scalePercent = initialColPercent/3.0;		// 3% normally
 	
 	// Output file specification
 	private String outputDir = "output";
@@ -73,6 +77,9 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	private String woundParamFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundParameters.csv";
 	private String woundStatFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundStat.csv";
 	private String woundColAnDistFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_WoundColFiberAngDist.csv";
+	private String colMVL2DFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_colMVL2D.csv";
+	private String colMVA2DFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_colMVA2D.csv";
+	private String colFrac2DFilename = outputDir+"\\"+mechs+"_"+gridUnitSize+"_"+modelTag+"_colFrac2D.csv";
 	
 /* Constructor */ 
 	public woundABMContextSim() {
@@ -129,6 +136,13 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	}
 
 /* Primary scheduled methods in order of execution */
+	
+	// Set the collision counting variable
+	@ScheduledMethod(start = 0.5, interval = 0.5, priority = 3)
+	public void setCollisionCounter() {
+		collisionCount = 0;
+	}
+	
 	// Initialize and set collagen grid value layers
 	@ScheduledMethod(start = 0, priority = 0.5, interval = 0.5)
 	public void CollagenValueLayer() {
@@ -141,8 +155,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 				double tempFibSum = 0;
 				int binNum = gridvaluelayerlist.size();
 				for (int i = 0; i < binNum; i++) {
-					double value = gridvaluelayerlist.get(i).get(x, y);
-					tempColSum = tempColSum+value;
+					tempColSum = tempColSum+gridvaluelayerlist.get(i).get(x, y);
 					tempFibSum = tempFibSum+fibringridvaluelayerlist.get(i).get(x, y);
 				}
 				
@@ -158,38 +171,83 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	public void initializeAngleCollagenLayer() {
 		
 		// Set distribution across all bins based on fiber distribution type
-		double[] distrib;
-		if (initialFiberDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
-			distrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
+		double[] colDistrib;
+		if (initialColDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
+			colDistrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
 					.013821, .020988, .03025, .041382, .053729, .06621, .07744,.085965,.090574,.090574,
 					.085965,.07744,.06621,.053729,.041382,.03025,.020988,.013821,.008638,.005124,.002885,
 					.001542,.000782,.000377,.000174,.000079,.000043};
-		} else if (initialFiberDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
-			distrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
+		} else if (initialColDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
+			colDistrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
 					.0015,.0007,.0004,.0002,.0001,.0000,.0000,.0001,.0002,.0004,.0007,.0015,.0028,.0050,
 					.0084,.0136,.0207,.0300,.0412,.0537,.0664,.0778,.0865,.0912};
 		} else {	// Uniform
-			distrib = new double [] {.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
+			colDistrib = new double [] {.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778};
 		}
 		
+		// Set distribution across all bins based on fiber distribution type
+		double[] fibDistrib;
+		if (initialFibDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
+			fibDistrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
+					.013821, .020988, .03025, .041382, .053729, .06621, .07744,.085965,.090574,.090574,
+					.085965,.07744,.06621,.053729,.041382,.03025,.020988,.013821,.008638,.005124,.002885,
+					.001542,.000782,.000377,.000174,.000079,.000043};
+		} else if (initialFibDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
+			fibDistrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
+					.0015,.0007,.0004,.0002,.0001,.0000,.0000,.0001,.0002,.0004,.0007,.0015,.0028,.0050,
+					.0084,.0136,.0207,.0300,.0412,.0537,.0664,.0778,.0865,.0912};
+		} else {	// Uniform
+			fibDistrib = new double [] {.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
+					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
+					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
+					.027778,.027778,.027778,.027778,.027778,.027778};
+		}
+
 		// Scale fiber content (from 2.5) to grid size
 		double scalingFactor = Math.pow(gridUnitSize/2.5,2);
 		
 		// Set each grid value layer
-		ArrayList<GridValueLayer> gridValueLayerList = (ArrayList<GridValueLayer>) GridValueLayerList();
-		ArrayList<GridValueLayer> fibringridValueLayerList = (ArrayList<GridValueLayer>) fibrinGridValueLayerList();
-		for (int i = 0; i < gridWidth; i++) {
-			for (int j = 0; j < gridHeight; j++) {
-				int binNum = gridValueLayerList.size();
-				for (int k = 0; k < binNum; k++) {
-					gridValueLayerList.get(k).set(scalePercent*36*scalingFactor*distrib[k], i, j);
-					if (includeFibrin == true) {
-						fibringridValueLayerList.get(k).set(25*36*scalingFactor*distrib[k], i, j);
+		ArrayList<GridValueLayer> collagenLayers = (ArrayList<GridValueLayer>) GridValueLayerList();
+		ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>) fibrinGridValueLayerList();
+		int binNum = collagenLayers.size();
+		
+		double woundGridNum = (double) (woundRadius/gridUnitSize);
+		double wCenter = gridWidth/2;
+		double hCenter = gridHeight/2;
+		for (int y = 0; y < gridHeight; y++) {
+			for (int x = 0; x < gridWidth; x++) {
+				if (includeFibrin == true) {
+					if (Math.sqrt(Math.pow((x-wCenter), 2)+Math.pow((y-hCenter), 2)) <= woundGridNum) {
+						for (int i = 0; i < binNum; i++) {
+							collagenLayers.get(i).set(0, x, y);
+						}
 					} else {
-						fibringridValueLayerList.get(k).set(0, i, j);
+						for (int i = 0; i < binNum; i++) {
+							fibrinLayers.get(i).set(25*36*scalingFactor*fibDistrib[i], x, y);
+						}
+					}
+				} else {
+					for (int i = 0; i < binNum; i++) {
+						fibrinLayers.get(i).set(0, x, y);
+					}
+				}
+
+				if (includeWoundCollagen == true) {
+					for (int i = 0; i < binNum; i++) {
+						collagenLayers.get(i).set(scalePercent*36*scalingFactor*colDistrib[i], x, y);
+					}
+				} else {
+					if (Math.sqrt(Math.pow((x-wCenter), 2)+Math.pow((y-hCenter), 2)) <= woundGridNum) {
+						for (int i = 0; i < binNum; i++) {
+							collagenLayers.get(i).set(0, x, y);
+						}
+					} else {
+						for (int i = 0; i < binNum; i++) {
+							collagenLayers.get(i).set(scalePercent*36*scalingFactor*colDistrib[i], x, y);
+						}
 					}
 				}
 			}
@@ -596,16 +654,18 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 		
 		// Build data strings
-		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntFiberDist,Fibrin,DepoType,CollagenRot,..."
-				+ "Infarction,MitosisTime,ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
+		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntColDist,IntColPercent,WoundCollagen,"
+				+ "CollagenRot,DepoType,IntFibDist,IncludeFibrin,CollisionGuidance,MitosisTime,"
+				+ "ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
 		String output = Double.toString(gridUnitSize)+","+Double.toString(sampleWidth)+","+
 				Double.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
-				initialFiberDist+","+Boolean.toString(includeFibrin)+","+depoType+","+
-				Boolean.toString(colRotation)+","+Boolean.toString(cellRemoval)+","+
-				Double.toString(gMitosisTime)+","+Double.toString(gApoptosisTime)+","+
-				Double.toString(gDepositionTime)+","+Double.toString(gDegradationTime)+","+
-				Double.toString(Wp)+","+Double.toString(Wc)+","+Double.toString(Ws)+","+
-				Double.toString(Wm);
+				initialColDist+","+Double.toString(initialColPercent)+","+
+				Boolean.toString(includeWoundCollagen)+","+Boolean.toString(colRotation)+","+depoType+","+
+				initialFibDist+","+Boolean.toString(includeFibrin)+","+
+				Double.toString(collisionGuidance)+","+Double.toString(gMitosisTime)+","+
+				Double.toString(gApoptosisTime)+","+Double.toString(gDepositionTime)+","+
+				Double.toString(gDegradationTime)+","+Double.toString(Wp)+","+Double.toString(Wc)+","+
+				Double.toString(Ws)+","+Double.toString(Wm);
 		
 		StringBuilder paramBuilder = new StringBuilder();
 		paramBuilder.append(heading+"\n");
@@ -626,7 +686,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	}
 	
 	// Calculate cell and collagen MVA, MVL, and fraction in the wound
-	@ScheduledMethod(start = 0.5, interval = 24, priority = 2)
+	@ScheduledMethod(start = 0.5, interval = 24, priority = 0)
 	public void writeCollagenSTAT() throws IOException {
 		Grid<?> grid = (Grid<?>) getProjection("Cell Grid");
 		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
@@ -711,10 +771,17 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		// Retrieve tick time
 		ISchedule schedule = RunEnvironment.getInstance().getCurrentSchedule();
 		double time = schedule.getTickCount();
-
+		
+		// Calculate the number of cells influenced by contact with other cells
+		double cellNum = 0;
+		for (Object i : cells) {
+		    cellNum ++;
+		}
+		double totalCollisionPercent = collisionCount/cellNum;
+		
 		// Output collagen and cell content, MVA, and MVL
-		String[] heading = {"Time", "ColFRC","ColMVA", "ColMVL", "CellFRC", "CellMVA", "CellMVL", "FibFRC", "FibMVA", "FibMVL"};
-		double[] output = {time, colFrac, colMVA, colMVL, cellFrac, cellMVA, cellMVL, fibFrac, fibMVA, fibMVL};
+		String[] heading = {"Time", "ColFRC","ColMVA", "ColMVL", "CellFRC", "CellMVA", "CellMVL", "FibFRC", "FibMVA", "FibMVL", "CollisionPercent"};
+		double[] output = {time, colFrac, colMVA, colMVL, cellFrac, cellMVA, cellMVL, fibFrac, fibMVA, fibMVL, totalCollisionPercent};
 		int outputNum = output.length;
 
 		// Initiate CSV file writer
@@ -776,4 +843,73 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 	}
 
+	// Write collagen information in 2 dimensions at the end of the simulation
+	@ScheduledMethod(start = 1008)
+	public void writeCollagen2D() throws IOException{
+		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
+		
+		// Make output file if it does not already exist
+		File directory = new File(outputDir);
+		if (!directory.exists()) {
+			directory.mkdir();
+		}
+		
+		// Initiate value layers
+		GridValueLayer colMVL = new GridValueLayer("CollagenMVL", 1.0, true, gridWidth, gridHeight);
+		GridValueLayer colMVA = new GridValueLayer("CollagenMVA", 1.0, true, gridWidth, gridHeight);	
+		GridValueLayer colFrac = new GridValueLayer("CollagenFrac", 1.0, true, gridWidth, gridHeight);
+
+		// Calculate collagen statistics for each grid and set in value layers
+		for (int j = 0; j < gridWidth; j++) {	
+			for (int k = 0; k < gridHeight; k++) {
+
+				// Calculate collagen fraction, MVA, and MVL
+				double sum = colSum.get(k, j);
+				double frac;
+				double MVA;
+				double MVL;
+				if (sum == 0) {
+					frac = 0;
+					MVL = 0;
+					MVA = 0;
+				} else {
+					frac = sum/(Math.pow(gridUnitSize,2)*fiberDensity);
+
+					double sumX = 0;
+					double sumY = 0;
+					int binNum = gridvaluelayerlist.size();
+					for (int i = 0; i < binNum; i++) {	
+						double fiberBin = 2*Math.toRadians(binSize*(i)-87.5);
+						sumX = sumX+gridvaluelayerlist.get(i).get(k, j)*Math.cos(fiberBin);
+						sumY = sumY+gridvaluelayerlist.get(i).get(k, j)*Math.sin(fiberBin);
+					}
+					double meanSumX = sumX/sum;
+					double meanSumY = sumY/sum;
+					MVA = 0.5*Math.toDegrees(Math.atan2(meanSumY, meanSumX));
+					MVL = Math.sqrt(Math.pow(meanSumX, 2)+Math.pow(meanSumY, 2));
+				}
+				// Set layer
+				colMVL.set(MVL, k, j);
+				colMVA.set(MVA, k, j);
+				colFrac.set(frac, k, j);
+			}
+		}
+
+		// Write the collagen information to csv files
+		FileWriter colMVLFile = new FileWriter(colMVL2DFilename);
+		FileWriter colMVAFile = new FileWriter(colMVA2DFilename);
+		FileWriter colFracFile = new FileWriter(colFrac2DFilename);
+		BufferedWriter MMwriter = new BufferedWriter(colMVLFile);
+		BufferedWriter MXwriter = new BufferedWriter(colMVAFile);
+		BufferedWriter MYwriter = new BufferedWriter(colFracFile);
+		writeValLayertoCSV(colMVL, MMwriter);
+		writeValLayertoCSV(colMVA, MXwriter);
+		writeValLayertoCSV(colFrac, MYwriter);
+	}
+
+/* Public Methods */
+	// 
+	public static void addCollision() {
+		collisionCount +=1;
+	}
 }
