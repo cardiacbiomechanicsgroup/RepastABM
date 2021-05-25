@@ -91,12 +91,12 @@
 				values="'Circumferential' 'Longitudinal' 'Uniform'"
 				isReadOnly="false"/>
 				
-		<parameter name="initialFibDist" displayName="Initial Fibrin Distribution" type="String"
+		<parameter name="initialNonColDist" displayName="Initial Non Collagen Distribution" type="String"
 				defaultValue="Circumferential"
 				values="'Circumferential' 'Longitudinal' 'Uniform'"
 				isReadOnly="false"/>
 				
-		<parameter name="includeFibrin" displayName="Include Fibrin" type="boolean"
+		<parameter name="includeNonCol" displayName="Include Non Collagen" type="boolean"
 				defaultValue="true"
 				isReadOnly="false" 
 				converter="repast.simphony.parameter.StringConverterFactory$BooleanConverter"/>

@@ -28,20 +28,20 @@ end
 figure(figureNum); hold on;
 
 subplot(2,3,1); hold on;
-plot(T, CollTimeMVL(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CollTimeMVL(:,type), 'Color', style, 'LineWidth',1.5);
 
 subplot(2,3,2); hold on;
-plot(T, CollTimeMVA(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CollTimeMVA(:,type), 'Color', style, 'LineWidth',1.5);
 
 subplot(2,3,3); hold on;
-plot(T, CollTimeFRC(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CollTimeFRC(:,type), 'Color', style, 'LineWidth',1.5);
 
 subplot(2,3,4); hold on;
-plot(T, CellTimeMVL(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CellTimeMVL(:,type), 'Color', style, 'LineWidth',1.5);
 
 subplot(2,3,5); hold on;
-plot(T, CellTimeMVA(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CellTimeMVA(:,type), 'Color', style, 'LineWidth',1.5);
 
 subplot(2,3,6); hold on;
-plot(T, CellTimeFRC(:,type), 'Color', style, 'LineWidth', 2);
+plot(T, CellTimeFRC(:,type), 'Color', style, 'LineWidth',1.5);
 end

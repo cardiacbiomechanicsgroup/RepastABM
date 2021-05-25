@@ -229,14 +229,14 @@ public class CellAgentSim {
 
 				// Retrieve structural value layers
 				final ArrayList<GridValueLayer> collagenLayers = (ArrayList<GridValueLayer>)woundABMSpace.GridValueLayerList();
-				final ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>)woundABMSpace.fibrinGridValueLayerList();	
+				final ArrayList<GridValueLayer> nonColLayers = (ArrayList<GridValueLayer>)woundABMSpace.nonColGridValueLayerList();	
 				
 				// Check for rotation, degradation, deposition
 				if (colRotation == true) {
 					collagenRotation(siteX, siteY, chemokine, collagenLayers);
 				}
 				collagenDeposition(siteX, siteY, chemokine, collagenLayers, depositionTime);
-				matrixDegradation(siteX, siteY, chemokine, collagenLayers, fibrinLayers, degradationTime);
+				matrixDegradation(siteX, siteY, chemokine, collagenLayers, nonColLayers, degradationTime);
 			}
 		}
 
@@ -287,15 +287,15 @@ public class CellAgentSim {
 		double Ms = 1;
 		if (scaleStructuralCue == true) {
 			final GridValueLayer colTotal = (GridValueLayer) woundabmspace.getValueLayer("Collagen Sum");
-			final GridValueLayer fibTotal = (GridValueLayer) woundabmspace.getValueLayer("Fibrin Sum");
+			final GridValueLayer nonColTotal = (GridValueLayer) woundabmspace.getValueLayer("Non Collagen Sum");
 			final List<GridPoint> coveredSites = cellCoverage(x, y);
 			double colSum = 0;
-			double fibSum = 0;
+			double nonColSum = 0;
 			for (GridPoint site : coveredSites ) {
 				final int siteX = site.getX();
 				final int siteY = site.getY();
 				colSum = colSum+colTotal.get(siteX, siteY);
-				fibSum = fibSum+fibTotal.get(siteX, siteY);
+				nonColSum = nonColSum+nonColTotal.get(siteX, siteY);
 			}
 			Ms = colSum/(kColGenMax/kColDegMax);
 		}
@@ -843,11 +843,11 @@ public class CellAgentSim {
 	}
 
 	// Fiber degradation method
-	private void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> fibringridValueLayerList, double degrationInterval) {
+	private void matrixDegradation(int x, int y, GridValueLayer chemokine, ArrayList<GridValueLayer> gridValueLayerList, ArrayList<GridValueLayer> nonColgridValueLayerList, double degrationInterval) {
 
 		// Calculate fiber degradation constants with respect to chemokine concentration
 		final double kColDeg = (chemokine.get(x, y)-concMin)/(concMax-concMin)*(kColDegMax-kColDegMin)+kColDegMin;
-		final double kFibDeg = kColDeg;
+		final double kNonColDeg = kColDeg;
 
 		// Degrade fibers uniformly across all bins
 		for (int i = 0; i < binNum180; i++) {
@@ -857,13 +857,13 @@ public class CellAgentSim {
 			final double newColContent = colContent*(1-kColDeg*degrationInterval);
 			gridValueLayerList.get(i).set(newColContent, x, y);
 
-			// Fibrin degradation (only within wound)
+			// Non collagen degradation (only within wound)
 			final double distToCenter = Math.sqrt(Math.pow((x-gridWidth/2), 2)+Math.pow((y-gridHeight/2), 2));
 			final double woundSize = (double) woundRadius/gridUnitSize;
 			if (distToCenter < woundSize) {
-				final double fibrinContent = fibringridValueLayerList.get(i).get(x, y);
-				final double newFibrinContent = fibrinContent*(1-kFibDeg*degrationInterval);
-				fibringridValueLayerList.get(i).set(newFibrinContent, x, y);
+				final double nonColContent = nonColgridValueLayerList.get(i).get(x, y);
+				final double newNonColContent = nonColContent*(1-kNonColDeg*degrationInterval);
+				nonColgridValueLayerList.get(i).set(newNonColContent, x, y);
 			}
 		}
 	}
@@ -940,7 +940,7 @@ public class CellAgentSim {
 		return new double[] {MMabm, MXabm, MYabm};
 	}
 
-	// Returns a vector of structural cues from collagen and fibrin content
+	// Returns a vector of structural cues from collagen and non collagen content
 	private double[] getColFiberCue(woundABMContextSim woundabmspace, int x, int y) {
 
 		// Get grids covered by the cell
@@ -948,7 +948,7 @@ public class CellAgentSim {
 
 		// Get grid value layers
 		final ArrayList<GridValueLayer> collagenLayers= (ArrayList<GridValueLayer>)woundabmspace.GridValueLayerList();
-		final ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>)woundabmspace.fibrinGridValueLayerList();
+		final ArrayList<GridValueLayer> nonColLayers = (ArrayList<GridValueLayer>)woundabmspace.nonColGridValueLayerList();
 
 		// Calculate structural cue magnitude, x, and y components
 		double fiberDist = 0;
@@ -961,7 +961,7 @@ public class CellAgentSim {
 			final int yCoor = site.getY();
 			for (int i = 0; i < binNum180; i++) {	// Iterate through fiber bins
 				fiberAngle = Math.toRadians(2*(binSize*i-87.5));
-				fiberDist = collagenLayers.get(i).get(xCoor, yCoor)+fibrinLayers.get(i).get(xCoor, yCoor);
+				fiberDist = collagenLayers.get(i).get(xCoor, yCoor)+nonColLayers.get(i).get(xCoor, yCoor);
 				fiberSumX = fiberSumX+fiberDist*Math.cos(fiberAngle);
 				fiberSumY = fiberSumY+fiberDist*Math.sin(fiberAngle);
 				fiberSum = fiberSum+fiberDist;

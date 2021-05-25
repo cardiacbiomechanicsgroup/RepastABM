@@ -8,27 +8,29 @@
 clear; clc; close all;
 %% All meachincs and grid sizes
 addpath('C:\Users\acb4ft\Desktop\WoundABM\woundABMSim\output\Standard');
-original_C=readModelData('UniaxC_2.5_20200922_130643');
-original_L=readModelData('UniaxL_2.5_20200922_130706');
-original_B=readModelData('Biax_2.5_20200922_130618');
+% original_C=readModelData('UniaxC_2.5_20200922_130643');
+% original_L=readModelData('UniaxL_2.5_20200922_130706');
+% original_B=readModelData('Biax_2.5_20200922_130618');
 % original_C=readModelData('UniaxC_10.0_20200917_161545');
 % original_L=readModelData('UniaxL_10.0_20200917_163634');
 % original_B=readModelData('Biax_10.0_20200917_160011');
 
-addpath('C:\Users\acb4ft\Desktop\WoundABM\woundABMSim\output\FinalCombination_25');
-modified_C=readModelData('');
-modified_L=readModelData('');
-modified_B=readModelData('');
+addpath('C:\Users\acb4ft\Desktop\WoundABM\woundABMSim\output\test');
+% modified_C=readModelData('');
+% modified_L=readModelData('');
+% modified_B=readModelData('Biax_10.0_20201028_213855');
+% modified_B=readModelData('Biax_10.0_20201028_213856');
+modified_B=readModelData('Biax_10.0_20201028_2138552');
 
-plotRepastABMStats(1,{'r--','r-'},modified_C, original_C);
-plotExperimentalData(1,'UniaxC');
-formatStatPlot(1,{'Modified','Standard','Experimental'});
+% plotRepastABMStats(1,{'r--','r-'},modified_C, original_C);
+% plotExperimentalData(1,'UniaxC');
+% formatStatPlot(1,{'Modified','Standard','Experimental'});
 
-plotRepastABMStats(1,{'g--','g-'},modified_L, original_L);
-plotExperimentalData(1,'UniaxL');
-formatStatPlot(1,{'Modified','Standard','Experimental'});
+% plotRepastABMStats(1,{'g--'},modified_L);
+% plotExperimentalData(1,'UniaxL');
+% formatStatPlot(1,{'Modified','Standard','Experimental'});
 
-plotRepastABMStats(1,{'b--','b-'},modified_B, original_B);
+plotRepastABMStats(1,{'b-'},modified_B);
 plotExperimentalData(1,'Biax');
 formatStatPlot(1,{'Modified','Standard','Experimental'});
 

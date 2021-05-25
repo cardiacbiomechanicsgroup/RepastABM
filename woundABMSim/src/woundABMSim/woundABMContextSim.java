@@ -56,15 +56,15 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	// Value layer information
 	ArrayList<ArrayList<double[]>> initialFiberArrayList;
 	private ArrayList<GridValueLayer> gridvaluelayerlist;
-	private ArrayList<GridValueLayer> fibringridvaluelayerlist;
-	private String[] basicValueLayer = {"Collagen Sum", "Fibrin Sum"};
+	private ArrayList<GridValueLayer> nonColgridvaluelayerlist;
+	private String[] basicValueLayer = {"Collagen Sum", "Non Collagen Sum"};
 	private String[] cueValueLayer = {"CM", "CX", "CY", "MM", "MX", "MY"};
 	private String mechs = (String) p.getValue("mechs");			// "UniaxC" "UniaxL" or "Biax"
 	private double fiberDensity = 178.25;							// fibers/um^2/7um thickness
 	private int binSize = 5;									// degrees
 	private String initialColDist = (String) p.getValue("initialColDist");	// "Circumferential" "Longitudinal" or "Uniform"
-	private String initialFibDist = (String) p.getValue("initialFibDist");	// "Circumferential" "Longitudinal" or "Uniform"
-	private boolean includeFibrin = (Boolean) p.getValue("includeFibrin");		// true or false
+	private String initialNonColDist = (String) p.getValue("initialNonColDist");	// "Circumferential" "Longitudinal" or "Uniform"
+	private boolean includeNonCol = (Boolean) p.getValue("includeNonCol");		// true or false
 	private boolean includeWoundCollagen = (Boolean) p.getValue("includeWoundCollagen");
 	private double initialColPercent = (double) p.getValue("initialColPercent");	// 3% normally
 	private double scalePercent = initialColPercent/3.0;		// 3% normally
@@ -115,24 +115,24 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Create 36 collagen bin grid value layers
 		String[] collagenLayerName = new String[36];
-		GridValueLayer layer;
+		GridValueLayer colLayer;
 		int fiberLayerNum = 36;
 		for (int i = 0; i < fiberLayerNum; i++) {
 			collagenLayerName[i] = "CollagenLayer"+i;
-			layer = new GridValueLayer(collagenLayerName[i], 1.0, true,gridWidth, gridHeight);
-			this.addValueLayer(layer);
+			colLayer = new GridValueLayer(collagenLayerName[i], 1.0, true,gridWidth, gridHeight);
+			this.addValueLayer(colLayer);
 		}
 		gridvaluelayerlist = new ArrayList<GridValueLayer>();
 
-		// Create 36 fibrin bin grid value layers
-		String[] fibrinLayerName = new String[36];
-		GridValueLayer fibrinlayer;
+		// Create 36 non collagen bin grid value layers
+		String[] nonColLayerName = new String[36];
+		GridValueLayer nonColLayer;
 		for (int i = 0; i < fiberLayerNum; i++) {
-			fibrinLayerName[i] = "FibrinLayer"+i;
-			fibrinlayer = new GridValueLayer(fibrinLayerName[i], 1.0, true,gridWidth, gridHeight);
-			this.addValueLayer(fibrinlayer);
+			nonColLayerName[i] = "NonColLayer"+i;
+			nonColLayer = new GridValueLayer(nonColLayerName[i], 1.0, true,gridWidth, gridHeight);
+			this.addValueLayer(nonColLayer);
 		}
-		fibringridvaluelayerlist = new ArrayList<GridValueLayer>();
+		nonColgridvaluelayerlist = new ArrayList<GridValueLayer>();
 	}
 
 /* Primary scheduled methods in order of execution */
@@ -147,28 +147,28 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	@ScheduledMethod(start = 0, priority = 0.5, interval = 0.5)
 	public void CollagenValueLayer() {
 		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
-		GridValueLayer fibSum = (GridValueLayer) getValueLayer("Fibrin Sum");
+		GridValueLayer nonColSum = (GridValueLayer) getValueLayer("Non Collagen Sum");
 		
 		for (int y = 0; y < gridHeight; y++) {
 			for (int x = 0; x < gridWidth; x++) {
 				double tempColSum = 0;
-				double tempFibSum = 0;
+				double tempNonColSum = 0;
 				int binNum = gridvaluelayerlist.size();
 				for (int i = 0; i < binNum; i++) {
 					tempColSum = tempColSum+gridvaluelayerlist.get(i).get(x, y);
-					tempFibSum = tempFibSum+fibringridvaluelayerlist.get(i).get(x, y);
+					tempNonColSum = tempNonColSum+nonColgridvaluelayerlist.get(i).get(x, y);
 				}
 				
 				// Update grid value layers			
 				colSum.set(tempColSum, x, y);	
-				fibSum.set(tempFibSum, x, y);
+				nonColSum.set(tempNonColSum, x, y);
 			}
 		}
 	}
 	
 	// Initialize collagen angle bin grid value layers
 	@ScheduledMethod(start = 0, priority = 1)
-	public void initializeAngleCollagenLayer() {
+	public void initializeStructuralLayerBins() {
 		
 		// Set distribution across all bins based on fiber distribution type
 		double[] colDistrib;
@@ -189,18 +189,18 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		}
 		
 		// Set distribution across all bins based on fiber distribution type
-		double[] fibDistrib;
-		if (initialFibDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
-			fibDistrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
+		double[] nonColDistrib;
+		if (initialNonColDist.equals("Circumferential")) {	// (rho = 0.75; Theta = 0)
+			nonColDistrib = new double[] {.000043,.000079,.000174,.000377,.000782,.001542,.002885,.005124,.008638,
 					.013821, .020988, .03025, .041382, .053729, .06621, .07744,.085965,.090574,.090574,
 					.085965,.07744,.06621,.053729,.041382,.03025,.020988,.013821,.008638,.005124,.002885,
 					.001542,.000782,.000377,.000174,.000079,.000043};
-		} else if (initialFibDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
-			fibDistrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
+		} else if (initialNonColDist.equals("Longitudinal")) {	// (rho = 0.75; Theta = 90) 
+			nonColDistrib = new double[] {.0912,.0865,.0778,.0664,.0537,.0412,.0300,.0207,.0136,.0084,.0050,.0028,
 					.0015,.0007,.0004,.0002,.0001,.0000,.0000,.0001,.0002,.0004,.0007,.0015,.0028,.0050,
 					.0084,.0136,.0207,.0300,.0412,.0537,.0664,.0778,.0865,.0912};
 		} else {	// Uniform
-			fibDistrib = new double [] {.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
+			nonColDistrib = new double [] {.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,.027778,
 					.027778,.027778,.027778,.027778,.027778,.027778};
@@ -211,7 +211,7 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Set each grid value layer
 		ArrayList<GridValueLayer> collagenLayers = (ArrayList<GridValueLayer>) GridValueLayerList();
-		ArrayList<GridValueLayer> fibrinLayers = (ArrayList<GridValueLayer>) fibrinGridValueLayerList();
+		ArrayList<GridValueLayer> nonColLayers = (ArrayList<GridValueLayer>) nonColGridValueLayerList();
 		int binNum = collagenLayers.size();
 		
 		double woundGridNum = (double) (woundRadius/gridUnitSize);
@@ -219,19 +219,19 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double hCenter = gridHeight/2;
 		for (int y = 0; y < gridHeight; y++) {
 			for (int x = 0; x < gridWidth; x++) {
-				if (includeFibrin == true) {
+				if (includeNonCol == true) {
 					if (Math.sqrt(Math.pow((x-wCenter), 2)+Math.pow((y-hCenter), 2)) <= woundGridNum) {
 						for (int i = 0; i < binNum; i++) {
 							collagenLayers.get(i).set(0, x, y);
 						}
 					} else {
 						for (int i = 0; i < binNum; i++) {
-							fibrinLayers.get(i).set(25*36*scalingFactor*fibDistrib[i], x, y);
+							nonColLayers.get(i).set(25*36*scalingFactor*nonColDistrib[i], x, y);
 						}
 					}
 				} else {
 					for (int i = 0; i < binNum; i++) {
-						fibrinLayers.get(i).set(0, x, y);
+						nonColLayers.get(i).set(0, x, y);
 					}
 				}
 
@@ -383,21 +383,21 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		return gridvaluelayerlist;
 	}
 
-	// An ArryList holds 36 GridValueLayer of fibrin bins
-	public ArrayList<GridValueLayer> fibrinGridValueLayerList() {
+	// An ArryList holds 36 GridValueLayer of non collagen bins
+	public ArrayList<GridValueLayer> nonColGridValueLayerList() {
 
 		int fiberLayerNum = 36;
 		String [] layerName = new String[fiberLayerNum];
 		for (int i = 0; i < fiberLayerNum; i++) {
-			layerName[i] = "FibrinLayer"+i;
-			GridValueLayer fibrinvariableLayer = (GridValueLayer) getValueLayer(layerName[i]);
-			if (fibringridvaluelayerlist.size() < fiberLayerNum) {
-				fibringridvaluelayerlist.add(i, fibrinvariableLayer);
+			layerName[i] = "NonColLayer"+i;
+			GridValueLayer nonColvariableLayer = (GridValueLayer) getValueLayer(layerName[i]);
+			if (nonColgridvaluelayerlist.size() < fiberLayerNum) {
+				nonColgridvaluelayerlist.add(i, nonColvariableLayer);
 			} else {
-				fibringridvaluelayerlist.set(i, fibrinvariableLayer);
+				nonColgridvaluelayerlist.set(i, nonColvariableLayer);
 			}
 		}	
-		return fibringridvaluelayerlist;
+		return nonColgridvaluelayerlist;
 	}
 
 	// Read in a CSV file and set it as grid value layer
@@ -655,13 +655,13 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		
 		// Build data strings
 		String heading = "GridSize,Width,Height,IntCells,Mechanics,IntColDist,IntColPercent,WoundCollagen,"
-				+ "CollagenRot,DepoType,IntFibDist,IncludeFibrin,CollisionGuidance,MitosisTime,"
+				+ "CollagenRot,DepoType,IntNonColDist,IncludeNonCol,CollisionGuidance,MitosisTime,"
 				+ "ApoptosisTime,DepoTime,DegTime,Wp,Wc,Ws,Wm";
 		String output = Double.toString(gridUnitSize)+","+Double.toString(sampleWidth)+","+
 				Double.toString(sampleHeight)+","+Integer.toString(cellSum)+","+mechs+","+
 				initialColDist+","+Double.toString(initialColPercent)+","+
 				Boolean.toString(includeWoundCollagen)+","+Boolean.toString(colRotation)+","+depoType+","+
-				initialFibDist+","+Boolean.toString(includeFibrin)+","+
+				initialNonColDist+","+Boolean.toString(includeNonCol)+","+
 				Double.toString(collisionGuidance)+","+Double.toString(gMitosisTime)+","+
 				Double.toString(gApoptosisTime)+","+Double.toString(gDepositionTime)+","+
 				Double.toString(gDegradationTime)+","+Double.toString(Wp)+","+Double.toString(Wc)+","+
@@ -690,26 +690,26 @@ public class woundABMContextSim extends DefaultContext<Object> {
 	public void writeCollagenSTAT() throws IOException {
 		Grid<?> grid = (Grid<?>) getProjection("Cell Grid");
 		GridValueLayer colSum = (GridValueLayer) getValueLayer("Collagen Sum");
-		GridValueLayer fibSum = (GridValueLayer) getValueLayer("Fibrin Sum");
+		GridValueLayer nonColSum = (GridValueLayer) getValueLayer("Non Collagen Sum");
 
 		double woundGridNum = (double) (woundRadius/gridUnitSize);
 		double wCenter = gridWidth/2;
 		double hCenter = gridHeight/2;
 
-		// Collect collagen and fibrin in the wound area
+		// Collect collagen and non collagen in the wound area
 		double woundColSum = 0;
-		double woundFibSum = 0;
+		double woundNonColSum = 0;
 		int binNum = gridvaluelayerlist.size();
 		double [] binColSum = new double[binNum];
-		double [] binFibSum = new double[binNum];
+		double [] binNonColSum = new double[binNum];
 		for (int y = 0; y < gridHeight; y++) {
 			for (int x = 0; x < gridWidth; x++) {
 				if (Math.sqrt(Math.pow((x-wCenter), 2)+Math.pow((y-hCenter), 2)) <= woundGridNum) {
 					woundColSum = woundColSum+colSum.get(x, y);
-					woundFibSum = woundFibSum+fibSum.get(x, y);
+					woundNonColSum = woundNonColSum+nonColSum.get(x, y);
 					for (int i = 0; i < binNum; i++) {
 						binColSum[i] = binColSum[i]+gridvaluelayerlist.get(i).get(x, y);	
-						binFibSum[i] = binFibSum[i]+fibringridvaluelayerlist.get(i).get(x, y);
+						binNonColSum[i] = binNonColSum[i]+nonColgridvaluelayerlist.get(i).get(x, y);
 					}
 				}
 			}
@@ -730,19 +730,19 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double colMVA = 0.5*Math.toDegrees(Math.atan2(meanColSumY, meanColSumX));
 		double colMVL = Math.sqrt(Math.pow(meanColSumX, 2)+Math.pow(meanColSumY, 2));
 
-		// Calculate fibrin content, MVA, and MVL
-		double fibFrac = woundFibSum/(woundArea*fiberDensity);
-		double fibSumX = 0;
-		double fibSumY = 0;
+		// Calculate non collagen content, MVA, and MVL
+		double nonColFrac = woundNonColSum/(woundArea*fiberDensity);
+		double nonColSumX = 0;
+		double nonColSumY = 0;
 		for (int i = 0; i < binNum; i++) {	
-			double fiberBin = 2*Math.toRadians(binSize*(i)-87.5);
-			fibSumX = fibSumX+binFibSum[i]*Math.cos(fiberBin);
-			fibSumY = fibSumY+binFibSum[i]*Math.sin(fiberBin);
+			double nonColerBin = 2*Math.toRadians(binSize*(i)-87.5);
+			nonColSumX = nonColSumX+binNonColSum[i]*Math.cos(nonColerBin);
+			nonColSumY = nonColSumY+binNonColSum[i]*Math.sin(nonColerBin);
 		}
-		double meanFibSumX = fibSumX/woundFibSum;
-		double meanFibSumY = fibSumY/woundFibSum;
-		double fibMVA = 0.5*Math.toDegrees(Math.atan2(meanFibSumY, meanFibSumX));
-		double fibMVL = Math.sqrt(Math.pow(meanFibSumX, 2)+Math.pow(meanFibSumY, 2));
+		double meanNonColSumX = nonColSumX/woundNonColSum;
+		double meanNonColSumY = nonColSumY/woundNonColSum;
+		double nonColMVA = 0.5*Math.toDegrees(Math.atan2(meanNonColSumY, meanNonColSumX));
+		double nonColMVL = Math.sqrt(Math.pow(meanNonColSumX, 2)+Math.pow(meanNonColSumY, 2));
 
 		// Collect cells in the wound area
 		int cellSum = 0;
@@ -780,8 +780,8 @@ public class woundABMContextSim extends DefaultContext<Object> {
 		double totalCollisionPercent = collisionCount/cellNum;
 		
 		// Output collagen and cell content, MVA, and MVL
-		String[] heading = {"Time", "ColFRC","ColMVA", "ColMVL", "CellFRC", "CellMVA", "CellMVL", "FibFRC", "FibMVA", "FibMVL", "CollisionPercent"};
-		double[] output = {time, colFrac, colMVA, colMVL, cellFrac, cellMVA, cellMVL, fibFrac, fibMVA, fibMVL, totalCollisionPercent};
+		String[] heading = {"Time", "ColFRC","ColMVA", "ColMVL", "CellFRC", "CellMVA", "CellMVL", "NonColFRC", "NonColMVA", "NonColMVL", "CollisionPercent"};
+		double[] output = {time, colFrac, colMVA, colMVL, cellFrac, cellMVA, cellMVL, nonColFrac, nonColMVA, nonColMVL, totalCollisionPercent};
 		int outputNum = output.length;
 
 		// Initiate CSV file writer
